@@ -251,29 +251,12 @@ input[type=range] {
 }
 
 .rail-logo {
-  width: 42px;
-  height: 19px;
+  width: 32px;
+  height: 32px;
   background: transparent;
   color: var(--fg);
   display: grid;
   place-items: center;
-}
-
-.beta-tag.rail-beta-tag {
-  width: 33px;
-  height: 14px;
-  margin-top: 6px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  background: #f3f4f6;
-  color: #111827;
-}
-
-:root[data-theme="dark"] .beta-tag.rail-beta-tag {
-  background: #2d2d2d;
-  color: #fff;
 }
 
 /* Section items are <a> now (one route per section), so the underline and the
@@ -1188,6 +1171,10 @@ input[type=range] {
   gap: var(--gap-tight);
 }
 
+.ctl-row:has(:is(.segmented, .pills)) {
+  padding-block: 8px;
+}
+
 .ctl-label {
   font-size: var(--fs-label);
   line-height: var(--lh-label);
@@ -1198,8 +1185,59 @@ input[type=range] {
   display: flex;
 }
 
-/* slider — the whole 34px track IS the slider; value sits inside right.
-   Figma: gray #f3f4f6 track, white fill box outlined #b9bfcb, 2×16 handle bar */
+.boolean-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--ctl-h);
+  padding: 5px 10px 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctrl);
+  background: var(--card-inset);
+  color: var(--fg-label);
+  font-size: var(--fs-label);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.boolean-field:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.boolean-field:disabled { opacity: .5; cursor: not-allowed; }
+.boolean-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boolean-switch {
+  display: flex;
+  align-items: center;
+  flex: 0 0 42px;
+  height: 22px;
+  padding: 2px;
+  background: var(--card-thumb);
+}
+.boolean-field.is-on .boolean-switch {
+  background: var(--inverse-bg);
+  color: var(--inverse-fg);
+}
+.boolean-switch::before {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  transform: translateX(0);
+  transition: transform var(--t-fast);
+}
+.boolean-field.is-on .boolean-switch::before { transform: translateX(18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .boolean-field, .boolean-switch::before { transition: none; }
+}
+
+/* The whole track is the slider; the label and value overlay it. */
 .strack {
   position: relative;
   width: 100%;
@@ -1209,6 +1247,50 @@ input[type=range] {
   cursor: ew-resize;
   user-select: none;
   overflow: hidden;
+}
+
+/* The label and value float over one continuous, full-width slider track. */
+.ctl-row-slider { gap: 0; }
+.slabel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  max-width: 46%;
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-label);
+  color: var(--fg-label);
+  pointer-events: none;
+}
+.srange {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.srange .shandle { z-index: 3; }
+.strack > .sval,
+.strack > .sval-input {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  max-width: 42%;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.strack > .sval::before { content: none; }
+.strack > .sval-input { background: var(--card-thumb); }
+.strack.is-disabled { opacity: .5; cursor: not-allowed; }
+.strack.is-disabled .sval { cursor: not-allowed; }
+.strack.is-dragging {
+  --sl-handle: var(--fg);
 }
 
 /* Rubber band. Drag past either end and the pushed edge gives instead of the
@@ -1244,14 +1326,12 @@ input[type=range] {
   bottom: 0;
   z-index: 2;
   background: var(--sl-fill);
-  /* Inset rather than a border, so the hairline never changes the box: the
-     fill's width is a percentage of the track and the handle is positioned
-     against the same percentage, so anything that moves its edges by a pixel
-     puts the two out of step. Transparent in light, where the fill states its
-     own edge. */
-  box-shadow: inset 0 0 0 1px var(--sl-fill-edge);
   border-radius: var(--r-ctrl);
   pointer-events: none;
+}
+
+:root:not([data-theme="dark"]) .sfill {
+  box-shadow: inset 0 0 0 1px var(--sl-fill-edge);
 }
 
 .shandle {
@@ -1352,50 +1432,6 @@ input[type=range] {
 
 .sinv .szero {
   background: color-mix(in srgb, var(--sl-handle-on) 34%, transparent);
-}
-
-/* Step marks, hidden until the pointer is on the track. At rest the row
-   should read as one clean bar; the marks are only worth anything once you
-   are actually aiming. Square, like every other corner here.
-
-   One element instead of a node per mark: the tile is exactly one interval
-   wide and paints a 2px square at its start, and the whole layer is shifted
-   right by one interval so the first mark lands on the first stop rather than
-   on the left edge. That pushes the last mark onto the right edge, where the
-   track's overflow clips it — leaving only the interior stops, which is what
-   the reference shows. --tick-n comes from the component because it is the
-   control's own step count, not a constant.
-
-   It sits at z-index 1, under the fill, so the marks vanish as the bar covers
-   them and only the empty part of the track is dotted. */
-.sticks {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--t-fast);
-  transform: translateX(calc(100% / var(--tick-n)));
-  background-image: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--fg) 30%, transparent) 0 var(--sl-tick),
-    transparent var(--sl-tick)
-  );
-  background-size: calc(100% / var(--tick-n)) var(--sl-tick);
-  background-repeat: repeat-x;
-  background-position: 0 center;
-}
-
-/* Touch has no hover, so the drag itself is the reveal. */
-.strack:hover .sticks,
-.strack.is-dragging .sticks {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sticks {
-    transition: none;
-  }
 }
 
 .sval-input {
@@ -1874,8 +1910,51 @@ select.field {
   color: var(--fg-body);
 }
 
-/* upload / dropzone — Figma: flat #f3f4f6 button, 12px #6b7280 */
-.upload,
+/* Upload actions use the same dashed treatment as Save compose. */
+.upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  text-align: center;
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--fg-faint);
+  border-radius: var(--r-ctrl);
+  padding: 9px 16px;
+  font-size: var(--fs-label);
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  cursor: pointer;
+}
+
+.upload::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V3m0 0L7 8m5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.upload:hover {
+  background: transparent;
+  border-color: var(--handle);
+  color: var(--fg-muted);
+}
+
+.asset-dropzone.over {
+  border-color: var(--handle);
+  color: var(--fg-muted);
+}
+
+.upload:focus-within,
+.upload:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
 .dropzone {
   display: block;
   width: 100%;
@@ -1890,7 +1969,6 @@ select.field {
   cursor: pointer;
 }
 
-.upload:hover,
 .dropzone:hover,
 .dropzone.over {
   background: var(--card-thumb);
@@ -1902,7 +1980,11 @@ select.field {
 }
 
 .upload input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* buttons */
@@ -2091,6 +2173,8 @@ select.field {
   font-size: var(--fs-meta);
   color: var(--fg-muted);
 }
+.asset-replace { min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.asset-replace:hover { color: var(--fg); text-decoration: underline; }
 
 .asset-item.asset-empty {
   cursor: pointer;
@@ -6216,7 +6300,7 @@ select.field {
 }
 
 /* ---- Strata loader: the brand mark's layers, shuffling ---- */
-/* This IS the logo (app/icon.svg, components/IconRail.tsx) put in motion. Its
+/* Legacy loading animation based on the former logo. Its
    three rounded rects sit side by side, each smaller and fainter, all centred
    on one line — so measured centre to centre they are offset 12 and 22 px, and
    sized 10x15 -> 8x10 -> 6x6, at opacity 1 -> .55 -> .3.
@@ -6971,6 +7055,27 @@ select.field {
 }
 
 .social-export { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 12px; width: 100%; }
+.social-export-compact { width:auto; padding:0; }
+.carousel-stage { width:100%; height:100%; min-height:0; display:flex; align-items:center; gap:24px; padding:24px; overflow:auto; overflow-anchor:none; position:relative; }
+.carousel-stage-disabled { width:100%; height:100%; }
+.carousel-stage-disabled > div { width:100%; height:100%; }
+.carousel-slide { flex:none; position:relative; }
+.carousel-live > .stage-wrap { padding:0; width:100%; height:100%; }
+.carousel-slide-pick { display:block; width:100%; height:100%; border-radius:var(--r-ctrl); overflow:hidden; }
+.carousel-slide-pick canvas { display:block; }
+.carousel-preview-placeholder { display:grid; place-content:center; gap:8px; width:100%; height:100%; padding:24px; text-align:center; color:var(--fg-muted); background:var(--surface); }
+.carousel-preview-placeholder small { font-size:11px; opacity:.7; }
+.carousel-slide-caption { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; padding-block:10px; color:var(--fg-muted); }
+.carousel-slide-caption button { text-decoration:underline; }
+.carousel-add { flex:none; display:grid; place-items:center; border:1px dashed var(--line); border-radius:var(--r-ctrl); background:transparent; color:var(--fg-muted); }
+.carousel-add span { font-size:48px; font-weight:300; }
+.carousel-add:hover { border-color:var(--fg); color:var(--fg); }
+.png-export-modal { padding:0; margin:auto; max-width:calc(100vw - 32px); color:var(--fg-body); }
+.png-export-modal::backdrop { background:rgba(17,24,39,.35); backdrop-filter:blur(2px); }
+.canvas-inline-text { display:block; margin:0; padding:0; border:0; border-radius:0; background:transparent; color:transparent; -webkit-text-fill-color:transparent; resize:none; overflow:hidden; box-shadow:none; outline:none; white-space:pre-wrap; overflow-wrap:break-word; cursor:text; }
+.canvas-inline-text:focus { outline:1px solid #8888; }
+.canvas-inline-text:focus-visible { outline:2px solid #888; }
+.canvas-inline-text::selection { background:#488cff55; }
 
 .social-textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 .social-template-thumb { display: grid; place-items: center; }

@@ -11,6 +11,14 @@ import type { ControlDef } from '@/lib/types';
 
 const FPS_OPTIONS = [15, 25, 30, 60] as const;
 const BG_ALPHA: ControlDef = { key: 'background-alpha', label: 'Alpha', type: 'slider', min: 0, max: 100, step: 1, default: 100 };
+const TEXT_CONTROLS: ControlDef[] = [
+  { key: 'overlayText', label: 'Heading', type: 'text', multiline: true, default: '' },
+  { key: 'overlayTextSize', label: 'Text size', type: 'slider', min: 24, max: 160, step: 1, unit: 'px', default: 72 },
+  { key: 'overlayTextColor', label: 'Text color', type: 'color', default: '#191919' },
+  { key: 'overlayTextAlign', label: 'Text align', type: 'pills', options: ['Left', 'Center', 'Right'], default: 'Center' },
+  { key: 'overlayTextX', label: 'Position X', type: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 50 },
+  { key: 'overlayTextY', label: 'Position Y', type: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 50 },
+];
 const BG_SOURCES: { id: 'color' | 'image' | 'card'; label: string }[] = [
   { id: 'color', label: 'Color' },
   { id: 'image', label: 'Image' },
@@ -53,6 +61,8 @@ export function DimInput({ value, onCommit, min = 16, max = 8192 }: {
 export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean } = {}) {
   const aspect = useSceneStore((s) => s.aspect);
   const activeTemplateId = useSceneStore((s) => s.activeTemplateId);
+  const values = useSceneStore((s) => s.values);
+  const setValue = useSceneStore((s) => s.setValue);
   const isSocial = !is3DMode && getTemplate(activeTemplateId).meta.kind === 'social';
   const isSocialMotion = !is3DMode && getTemplate(activeTemplateId).meta.kind === 'social-motion';
   const setAspect = useSceneStore((s) => s.setAspect);
@@ -67,6 +77,8 @@ export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean }
   const setBackground = useSceneStore((s) => s.setBackground);
   const logo = useSceneStore((s) => s.logo);
   const setLogo = useSceneStore((s) => s.setLogo);
+  const logoX = logo.x ?? (logo.position.includes('r') ? 100 : 0);
+  const logoY = logo.y ?? (logo.position.startsWith('b') ? 100 : 0);
   const setAudioUrl = useSceneStore((s) => s.setAudioUrl);
   const audioUrl = useSceneStore((s) => s.audioUrl);
   const isStickerCanvas = activeTemplateId.startsWith('stickers-')
@@ -110,6 +122,19 @@ export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean }
           )}
         </div>
 
+        <div className="ctl-section">
+          <div className="ctl-section-title">Text</div>
+          <ControlRow def={{ key: 'overlayTextEnabled', label: 'Add text', type: 'toggle', options: ['Off', 'On'], default: 'Off' }} value={values.overlayTextEnabled ?? 'Off'} onChange={value => setValue('overlayTextEnabled', value)} />
+          {values.overlayTextEnabled === 'On' && TEXT_CONTROLS.map(def =>
+            <ControlRow key={def.key} def={def} value={values[def.key] ?? def.default} onChange={value => setValue(def.key, value)} />)}
+        </div>
+
+        {isSocial && getTemplate(activeTemplateId).controls.some(def => def.key === 'postTheme' || def.key === 'fontStyle') && <div className="ctl-section">
+          <div className="ctl-section-title">Appearance</div>
+          {getTemplate(activeTemplateId).controls.filter(def => def.key === 'postTheme' || def.key === 'fontStyle').map(def =>
+            <ControlRow key={def.key} def={def} value={values[def.key] ?? def.default} onChange={value => setValue(def.key, value)} />)}
+        </div>}
+
         {!isSocial && <div className="ctl-section">
           <div className="ctl-section-title">Playback & Framing</div>
           <div className="ctl-row">
@@ -130,13 +155,11 @@ export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean }
           </div>
 
           {!is3DMode && !isSocialMotion && (
-            <div className="ctl-row">
-              <label className="ctl-label">Safe area</label>
-              <div className="segmented">
-                <button className={`seg ${!safeArea ? 'active' : ''}`} onClick={() => safeArea && toggleSafeArea()}>Off</button>
-                <button className={`seg ${safeArea ? 'active' : ''}`} onClick={() => !safeArea && toggleSafeArea()}>On</button>
-              </div>
-            </div>
+            <ControlRow
+              def={{ key: 'safe-area', label: 'Safe area', type: 'toggle', options: ['Off', 'On'], default: 'Off' }}
+              value={safeArea ? 'On' : 'Off'}
+              onChange={(value) => { if ((value === 'On') !== safeArea) toggleSafeArea(); }}
+            />
           )}
         </div>}
 
@@ -187,10 +210,9 @@ export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean }
             {background.source === 'image' && (
               <>
                 <div className="ctl-row">
-                  <label className="ctl-label">Image</label>
                   <label className="upload">
                     <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBackground({ imageUrl: URL.createObjectURL(f) }); }} />
-                    <span>{background.imageUrl ? 'Replace…' : 'Upload…'}</span>
+                    <span>{background.imageUrl ? 'Replace image' : 'Upload image'}</span>
                   </label>
                 </div>
                 <ControlRow def={{ key: 'bgblur', label: 'Blur', type: 'slider', min: 0, max: 100, step: 1, default: 28 }} value={background.blur} onChange={(v) => setBackground({ blur: Number(v) })} />
@@ -212,10 +234,9 @@ export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean }
           <div className="ctl-section">
             <div className="ctl-section-title">Overlays</div>
             <div className="ctl-row">
-              <label className="ctl-label">Logo</label>
               <label className="upload">
                 <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) setLogo({ url: URL.createObjectURL(f) }); }} />
-                <span>{logo.url ? 'Replace logo…' : 'Upload logo…'}</span>
+                <span>{logo.url ? 'Replace logo' : 'Upload logo'}</span>
               </label>
             </div>
             {logo.url && (
@@ -223,16 +244,19 @@ export default function CanvasPanel({ is3DMode = false }: { is3DMode?: boolean }
                 <label className="ctl-label">Logo corner</label>
                 <div className="pills">
                   {(['tl', 'tr', 'bl', 'br'] as const).map((p) => (
-                    <button key={p} className={`pill ${logo.position === p ? 'active' : ''}`} onClick={() => setLogo({ position: p })}>{p.toUpperCase()}</button>
+                    <button key={p} className={`pill ${logoX === (p.includes('r') ? 100 : 0) && logoY === (p.startsWith('b') ? 100 : 0) ? 'active' : ''}`} onClick={() => setLogo({ position: p, x: p.includes('r') ? 100 : 0, y: p.startsWith('b') ? 100 : 0 })}>{p.toUpperCase()}</button>
                   ))}
                 </div>
               </div>
             )}
+            {logo.url && <>
+              <ControlRow def={{ key: 'logo-x', label: 'Position X', type: 'slider', min: 0, max: 100, step: 1, default: logoX, unit: '%' }} value={logoX} onChange={(value) => setLogo({ x: Number(value) })} />
+              <ControlRow def={{ key: 'logo-y', label: 'Position Y', type: 'slider', min: 0, max: 100, step: 1, default: logoY, unit: '%' }} value={logoY} onChange={(value) => setLogo({ y: Number(value) })} />
+            </>}
             <div className="ctl-row">
-              <label className="ctl-label">Audio</label>
               <label className="upload">
                 <input type="file" accept="audio/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) setAudioUrl(URL.createObjectURL(f)); }} />
-                <span>{audioUrl ? 'Replace audio…' : 'Upload audio…'}</span>
+                <span>{audioUrl ? 'Replace audio' : 'Upload audio'}</span>
               </label>
             </div>
           </div>

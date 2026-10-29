@@ -200,7 +200,7 @@ export default function UpdateNotifier() {
       {IS_HOSTED_DEPLOYMENT ? (
         <>
           <span className="update-notice-eyebrow">Hosted version</span>
-          <strong id="update-notice-title">What’s new in Motion Studio</strong>
+          <strong id="update-notice-title">What’s new in Apta Studio</strong>
           <p>
             This version is updated automatically when a new Vercel deployment is published.
             There is no local Git update to install here.
@@ -238,7 +238,7 @@ export default function UpdateNotifier() {
       ) : status?.updateAvailable ? (
         <>
           <span className="update-notice-eyebrow">New version available</span>
-          <strong id="update-notice-title">What’s new in Motion Studio</strong>
+          <strong id="update-notice-title">What’s new in Apta Studio</strong>
           {status.commits.length > 0 && (
             <ul className="update-notice-list">
               {status.commits.slice(0, 5).map((commit) => <li key={commit.hash}>{commit.subject}</li>)}
@@ -258,7 +258,7 @@ export default function UpdateNotifier() {
       ) : (
         <>
           <span className="update-notice-eyebrow">Notifications</span>
-          <strong id="update-notice-title">Motion Studio updates</strong>
+          <strong id="update-notice-title">Apta Studio updates</strong>
           {phase === 'error'
             ? <p className="update-notice-warning">{message}</p>
             : <p>{message || 'New versions will appear here when they are available.'}</p>}
@@ -280,7 +280,7 @@ export default function UpdateNotifier() {
         className={`rail-item rail-update ${open ? 'active' : ''}`}
         onClick={togglePanel}
         aria-label={IS_HOSTED_DEPLOYMENT
-          ? 'What’s new in Motion Studio'
+          ? 'What’s new in Apta Studio'
           : unread ? 'Notifications, new update available' : 'Update notifications'}
         aria-expanded={open}
         aria-controls="update-notification-panel"

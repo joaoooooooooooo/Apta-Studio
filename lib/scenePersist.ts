@@ -30,6 +30,8 @@ export function buildScenePartial(s: SceneState) {
     easing: s.easing,
     fps: s.fps,
     duration: s.duration,
+    carouselSlides: s.carouselSlides.map(slide => ({...slide,assets:slide.assets?.map(asset => asset.origin === 'upload' ? {...asset,url:''} : asset)})),
+    activeSlideId: s.activeSlideId,
     aspect: s.aspect,
     width: s.width,
     height: s.height,
@@ -134,6 +136,7 @@ export function startSceneAutosave(): () => void {
 // document — and the clock (frame/playing), which is not in the partial at all,
 // can never look like one.
 const DOC_KEYS = [
+  'carouselSlides', 'activeSlideId',
   'tracks', 'activeTrackId', 'activeTemplateId', 'values', 'easing', 'fps', 'duration',
   'aspect', 'width', 'height', 'customW', 'customH', 'safeArea', 'background', 'logo',
   'cardShape', 'sceneCamera', 'videoEnd', 'effects', 'assets',

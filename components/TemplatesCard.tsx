@@ -6,6 +6,7 @@ import { catalogTemplateList, templateList, templateGroups, getTemplate } from '
 import type { Template } from '@/lib/types';
 import TemplateThumb from './TemplateThumb';
 import { ControlRow } from './Controls';
+import GalleryCaptionRows from './GalleryCaptionRows';
 import { useMobileInteractions } from './MobileInteractions';
 import { ChevronRightIcon, CloseIcon, HeartIcon, SearchIcon } from './EditorIcons';
 import { isShippedCompose } from '@/lib/composes';
@@ -244,14 +245,14 @@ export default function TemplatesCard({
               {getTemplate(activeTemplateId).controls
                 // count is owned by the board (its Cards slider), not the template
                 .filter((def) => def.key !== 'count')
-                .map((def) => (
-                  <ControlRow
-                    key={def.key}
-                    def={def}
-                    value={values[def.key]}
-                    onChange={(val) => setValue(def.key, val)}
-                  />
-                ))}
+                .map((def) => def.key === 'captions' && activeTemplateId === 'wheel-gallery-text'
+                  ? <GalleryCaptionRows key={def.key} count={values.count} value={values.captions} onChange={(text) => setValue('captions', text)} />
+                  : <ControlRow
+                      key={def.key}
+                      def={def}
+                      value={values[def.key]}
+                      onChange={(val) => setValue(def.key, val)}
+                    />)}
             </div>
           </>
         ) : (

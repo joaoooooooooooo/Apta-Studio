@@ -182,7 +182,7 @@ function readme(project: BoardProject): string {
   const b = project.board;
   return `# ${s.activeTemplateId} scene — export bundle
 
-Exported from Motion Studio. The \`scene/\` folder is the **real editor source**
+Exported from Apta Studio. The \`scene/\` folder is the **real editor source**
 (decoupled from the editor's state), so what you drop in is exactly what the
 editor renders — for any effect, not just this one.
 

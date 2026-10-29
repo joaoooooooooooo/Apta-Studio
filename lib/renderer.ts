@@ -3,7 +3,9 @@ import { sceneBackgroundAlpha } from './chipBackground';
 import * as PIXI from 'pixi.js';
 import { MotionChipLayer } from './motionChipLayer';
 import { SocialMotionHeader } from './socialMotionHeader';
+import { drawTemplateText, hasTemplateText } from './templateText';
 import { socialPostColors } from '@/templates/social/theme';
+import { loadSocialFonts } from './socialAssets';
 import type { LayerTransform } from '@/lib/types';
 import { getTemplate, layerCountFor } from '@/templates';
 import { getEffect } from '@/effects';
@@ -69,6 +71,8 @@ function taperCorners(w: number, h: number, taper: NonNullable<LayerTransform['t
 // order = stacking order) and can carry independent alpha / blend modes.
 interface TrackRT {
   chip?: MotionChipLayer;
+  textOverlay?: PIXI.Text;
+  textStyleKey?: string;
   container: PIXI.Container;
   slots: Slot[];
   assetSig: string;
@@ -101,6 +105,10 @@ export class SceneRenderer {
   app: PIXI.Application;
   onDirty?: () => void;   // preview loop hooks this to redraw once after async loads
   private postHeader = new SocialMotionHeader();
+  private templateTextSprite = new PIXI.Sprite();
+  private templateTextCanvas?: HTMLCanvasElement;
+  private templateTextTexture?: PIXI.Texture;
+  private templateTextKey = '';
   private content = new PIXI.Container();       // bg + motion (effects applied here)
   private bg = new PIXI.Graphics();
   private gradientSprite = new PIXI.Sprite();
@@ -164,7 +172,7 @@ export class SceneRenderer {
     this.bgSprite.visible = false;
     this.bgSprite.filters = [this.bgBlur];
     this.content.addChild(this.bg, this.gradientSprite, this.bgSprite, this.motion);
-    this.app.stage.addChild(this.content, this.overlay, this.postHeader.sprite);
+    this.app.stage.addChild(this.content, this.overlay, this.postHeader.sprite, this.templateTextSprite);
     this.postHeader.onDirty = () => this.onDirty?.();
     this.overlay.addChild(this.safeGfx);
 
@@ -278,6 +286,23 @@ export class SceneRenderer {
         this.trackRTs.set(track.id, rt);
       }
       rt.container.zIndex = order;
+      const hasTextOverlay = !!getTemplate(track.templateId).textOverlay;
+      if (hasTextOverlay && !rt.textOverlay) {
+        rt.textOverlay = new PIXI.Text({ text: '' });
+        rt.textOverlay.anchor.set(0.5);
+        rt.textOverlay.zIndex = 1_000_000;
+        rt.container.addChild(rt.textOverlay);
+        void loadSocialFonts().then(() => {
+          if (!rt?.textOverlay) return;
+          rt.textStyleKey = undefined;
+          rt.textOverlay.text = '';
+          this.onDirty?.();
+        }).catch(() => {});
+      } else if (!hasTextOverlay && rt.textOverlay) {
+        rt.textOverlay.destroy();
+        rt.textOverlay = undefined;
+        rt.textStyleKey = undefined;
+      }
       if (getTemplate(track.templateId).meta.group === 'Motion Chips') {
         if (!rt.chip) {
           for (const slot of rt.slots) { slot.mesh?.destroy({ children: true }); slot.sprite.destroy({ children: true }); }
@@ -714,8 +739,10 @@ export class SceneRenderer {
       });
       const pad = 32;
       const half = s.logo.size / 2;
-      const px = s.logo.position.includes('r') ? width - pad - half : pad + half;
-      const py = s.logo.position.startsWith('t') ? pad + half : height - pad - half;
+      const x = Math.max(0, Math.min(100, s.logo.x ?? (s.logo.position.includes('r') ? 100 : 0))) / 100;
+      const y = Math.max(0, Math.min(100, s.logo.y ?? (s.logo.position.startsWith('b') ? 100 : 0))) / 100;
+      const px = pad + half + (width - 2 * (pad + half)) * x;
+      const py = pad + half + (height - 2 * (pad + half)) * y;
       this.logoSprite.position.set(px, py);
       this.logoSprite.visible = true;
     } else if (this.logoSprite) {
@@ -782,6 +809,7 @@ export class SceneRenderer {
     const backdrop = socialMotion ? { ...s, safeArea: false, logo: { ...s.logo, url: null }, background: { ...s.background, source: 'color' as const, color: socialPostColors(s.values.postTheme).background, alpha: 100, gradient: false } } : { ...s, background: { ...s.background, alpha: sceneBackgroundAlpha(s) } };
     this.drawOverlays(backdrop);
     this.postHeader.update(socialMotion, s.values, s.width, s.height, this.app.renderer.resolution);
+    this.updateTemplateText(s.values, s.width, s.height, this.app.renderer.resolution);
 
     const totalFrames = Math.max(1, Math.round(s.duration * s.fps));
 
@@ -856,6 +884,22 @@ export class SceneRenderer {
         cardAspect: cardAspectFor(template.meta, s.width, s.height, s.cardShape),
       };
 
+      if (rt.textOverlay && template.textOverlay) {
+        const caption = template.textOverlay(time.localFrame, count, track.values, ctx);
+        rt.textOverlay.text = caption.text;
+        rt.textOverlay.position.set(caption.x, caption.y);
+        const styleKey = `${caption.fontSize}|${caption.color}|${caption.maxWidth}`;
+        if (styleKey !== rt.textStyleKey) {
+          rt.textStyleKey = styleKey;
+          rt.textOverlay.style = new PIXI.TextStyle({
+            fontFamily: 'Inter Tight, sans-serif', fontWeight: '500',
+            fontSize: caption.fontSize, fill: caption.color,
+            letterSpacing: -0.03 * caption.fontSize, lineHeight: 1.2 * caption.fontSize,
+            align: 'center', wordWrap: true, wordWrapWidth: caption.maxWidth,
+          });
+        }
+      }
+
       for (let i = 0; i < count; i++) {
         const slot = rt.slots[i];
         const t = template.transform(time.localFrame, i, count, track.values, ctx);
@@ -911,8 +955,30 @@ export class SceneRenderer {
     this.updateBackground(backdrop, featured);
   }
 
+  private updateTemplateText(values: Record<string, any>, width: number, height: number, resolution: number) {
+    this.templateTextSprite.visible = hasTemplateText(values);
+    if (!this.templateTextSprite.visible) return;
+    const key = JSON.stringify([width, height, resolution, values.overlayText, values.overlayTextSize, values.overlayTextColor, values.overlayTextAlign, values.overlayTextX, values.overlayTextY]);
+    if (key === this.templateTextKey) return;
+    const w = Math.max(1, Math.round(width * resolution)), h = Math.max(1, Math.round(height * resolution));
+    const resized = !this.templateTextCanvas || this.templateTextCanvas.width !== w || this.templateTextCanvas.height !== h;
+    if (resized) { this.templateTextCanvas = document.createElement('canvas'); this.templateTextCanvas.width = w; this.templateTextCanvas.height = h; }
+    const ctx = this.templateTextCanvas!.getContext('2d')!;
+    ctx.clearRect(0, 0, w, h);
+    drawTemplateText(ctx, width, height, values, resolution);
+    if (resized || !this.templateTextTexture) {
+      this.templateTextTexture?.destroy(true);
+      this.templateTextTexture = PIXI.Texture.from(this.templateTextCanvas!);
+      this.templateTextSprite.texture = this.templateTextTexture;
+    } else this.templateTextTexture.source.update();
+    this.templateTextSprite.width = width;
+    this.templateTextSprite.height = height;
+    this.templateTextKey = key;
+  }
+
   async prepareFrame() {
     this.syncAssets();
+    if (useSceneStore.getState().tracks.some(track => !!getTemplate(track.templateId).textOverlay)) await loadSocialFonts();
     await Promise.all(useSceneStore.getState().tracks.map(track => this.trackRTs.get(track.id)?.chip?.prepare(track.templateId, track.values)));
     if (getTemplate(useSceneStore.getState().activeTemplateId).meta.kind === 'social-motion') {
       await this.postHeader.prepare();
@@ -1063,6 +1129,7 @@ export class SceneRenderer {
     this.videoEls.forEach((v) => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch { /* noop */ } });
     this.videoEls.clear();
     this.gradientTexture?.destroy(true);
+    this.templateTextTexture?.destroy(true);
     this.postHeader.destroy();
     this.trackRTs.forEach(rt => rt.chip?.destroy());
     this.gradientTexture = null;

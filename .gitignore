@@ -24,8 +24,12 @@ out/
 # only. Third-party licensed stock — never commit, never deploy.
 public/demo-ref/
 
-# local env (holds the demo-set override; never commit)
-.env*.local
+# local environment and credentials
+.env*
+!.env.example
+
+# local preview captured during development
+app/Animated GIF Maker Speed (1).gif
 
 # contact sheets from scripts/shoot.cjs — generated, and rendered with whatever
 # demo set is active (may be third-party reference imagery)

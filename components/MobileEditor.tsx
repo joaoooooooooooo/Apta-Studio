@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import TemplatesCard from './TemplatesCard';
 import MediaSidebar from './MediaSidebar';
 import ScenePanel from './ScenePanel';
+import CopySocialProperties from './CopySocialProperties';
 import EffectsPanel from './EffectsPanel';
 import CanvasPanel from './CanvasPanel';
 import ProjectsPanel from './ProjectsPanel';
@@ -109,6 +110,7 @@ export default function MobileEditor() {
               <ScenePanel />
               <div className="hairline" />
               {!isSocial && !isArtwork && <EffectsPanel />}
+              {!isSocial && !isArtwork && <CopySocialProperties />}
             </div>
           )}
           {tab === 'canvas' && (

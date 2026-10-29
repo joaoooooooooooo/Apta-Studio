@@ -2,7 +2,7 @@ import 'server-only';
 
 import { execFile } from 'node:child_process';
 
-const OFFICIAL_REPOSITORY = 'https://github.com/appariciojunior/motion-studio-open.git';
+const OFFICIAL_REPOSITORY = 'https://github.com/joaoooooooooooo/Apta-Studio.git';
 const UPDATE_BRANCH = 'main';
 const UPDATE_REF = 'refs/motion-studio/update-main';
 const FALLBACK_UPDATE_REFS = [UPDATE_REF, 'refs/remotes/appariciojunior/main'] as const;

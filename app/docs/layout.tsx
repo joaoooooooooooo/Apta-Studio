@@ -13,8 +13,8 @@ import '@/app/globals.css';
 import './docs.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Docs', template: '%s · Motion Studio docs' },
-  description: 'How to use Motion Studio: the motion catalogue, tracks, canvas and export.',
+  title: { default: 'Docs', template: '%s · Apta Studio docs' },
+  description: 'How to use Apta Studio: the motion catalogue, tracks, canvas and export.',
 };
 
 /**

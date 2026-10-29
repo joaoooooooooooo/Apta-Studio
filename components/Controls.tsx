@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import type { ControlDef } from '@/lib/types';
 import MobileSheet from './MobileSheet';
 import { useMobileInteractions } from './MobileInteractions';
@@ -16,30 +15,60 @@ interface RowProps {
   def: ControlDef;
   value: any;
   onChange: (val: any) => void;
+  disabled?: boolean;
 }
 
-export function ControlRow({ def, value, onChange }: RowProps) {
+export function ControlRow({ def, value, onChange, disabled = false }: RowProps) {
+  const booleanField = isBooleanControl(def);
   return (
-    <div className="ctl-row" title={def.description}>
-      <label className="ctl-label">{def.label}</label>
-      <div className="ctl-input">{renderControl(def, value, onChange)}</div>
+    <div className={`ctl-row ${def.type === 'slider' ? 'ctl-row-slider' : ''}`} title={def.description}>
+      {def.type !== 'slider' && def.type !== 'upload' && !booleanField && <label className="ctl-label">{def.label}</label>}
+      <div className="ctl-input">{renderControl(def, value, onChange, disabled)}</div>
     </div>
   );
 }
 
-function renderControl(def: ControlDef, value: any, onChange: (v: any) => void) {
+function isBooleanControl(def: ControlDef) {
+  return (def.type === 'toggle' || def.type === 'pills')
+    && def.options?.length === 2
+    && def.options.some(option => option.toLowerCase() === 'on')
+    && def.options.some(option => option.toLowerCase() === 'off');
+}
+
+function renderControl(def: ControlDef, value: any, onChange: (v: any) => void, disabled = false) {
+  if (isBooleanControl(def)) return <BooleanControl def={def} value={value} onChange={onChange} disabled={disabled} />;
   switch (def.type) {
-    case 'slider': return <SliderControl def={def} value={value} onChange={onChange} />;
+    case 'slider': return <SliderControl def={def} value={value} onChange={onChange} disabled={disabled} />;
     case 'toggle': return <ToggleControl def={def} value={value} onChange={onChange} />;
     case 'pills': return <PillsControl def={def} value={value} onChange={onChange} />;
     case 'select': return <SelectControl def={def} value={value} onChange={onChange} />;
     case 'direction': return <DirectionControl def={def} value={value} onChange={onChange} />;
     case 'color': return <ColorControl value={value} onChange={onChange} />;
     case 'xypad': return <XYPadControl def={def} value={value} onChange={onChange} />;
-    case 'upload': return <UploadControl value={value} onChange={onChange} />;
+    case 'upload': return <UploadControl def={def} value={value} onChange={onChange} />;
     case 'text': return <TextControl multiline={def.multiline} label={def.label} value={value} onChange={onChange} />;
     default: return null;
   }
+}
+
+function BooleanControl({ def, value, onChange, disabled = false }: RowProps) {
+  const onValue = def.options!.find(option => option.toLowerCase() === 'on')!;
+  const offValue = def.options!.find(option => option.toLowerCase() === 'off')!;
+  const checked = value === onValue;
+  return (
+    <button
+      type="button"
+      className={`boolean-field ${checked ? 'is-on' : ''}`}
+      role="switch"
+      aria-checked={checked}
+      aria-label={def.label}
+      disabled={disabled}
+      onClick={() => onChange(checked ? offValue : onValue)}
+    >
+      <span className="boolean-label" aria-hidden="true">{def.label}</span>
+      <span className="boolean-switch" aria-hidden="true" />
+    </button>
+  );
 }
 
 // Dragging past an end gives the track's pushed edge instead of stopping
@@ -50,10 +79,8 @@ function renderControl(def: ControlDef, value: any, onChange: (v: any) => void) 
 const RUBBER_FALLOFF = 55;
 const rubberBand = (over: number, max: number) => (over <= 0 ? 0 : max * (1 - Math.exp(-over / RUBBER_FALLOFF)));
 
-// Figma spec: the whole 34px track is the slider. Fill #2d2d2d over #232323,
-// a 2×16px #424242 bar as handle, value inside the track right-aligned
-// (12px #aaa), click the value to type an exact number.
-function SliderControl({ def, value, onChange }: RowProps) {
+// Shared parameter slider: label and editable value overlay the full-width track.
+function SliderControl({ def, value, onChange, disabled = false }: RowProps) {
   const mobile = useMobileInteractions();
   const min = def.min ?? 0, max = def.max ?? 100, step = def.step ?? 1;
   const trackRef = useRef<HTMLDivElement>(null);
@@ -76,30 +103,7 @@ function SliderControl({ def, value, onChange }: RowProps) {
   const handleLeft = signed && pct === zeroPct
     ? `${pct}%`
     : `clamp(6px, calc(${pct}% + ${handleInset}px), calc(100% - 6px))`;
-  // The handle takes a different shape where it runs under the readout, so
-  // the component has to know when that is — CSS cannot compare two boxes.
-  // Both widths come from a ResizeObserver, never from a per-frame read: they
-  // only change when the panel resizes or the number gains a digit, and
-  // measuring inside the drag would mean a synchronous layout every move.
-  const valRef = useRef<HTMLSpanElement>(null);
-  const [boxes, setBoxes] = useState({ track: 0, val: 0 });
   const decimals = def.precision ?? (step < 1 ? Math.min(3, Math.ceil(-Math.log10(step))) : 0);
-  // Step marks. Where the control has few stops they ARE the stops, so a mark
-  // means "the value lands here"; past a handful they would be a picket fence,
-  // and fifths read as a ruler instead of as a lie about where values snap.
-  // The ceiling is what keeps a coarse slider from being denser than a fine
-  // one — a 0-100 step-1 row gets four marks, and so does a six-stop row.
-  const stopCount = Math.round((max - min) / step);
-  const tickN = Number.isFinite(stopCount) && stopCount >= 2 && stopCount <= 6 ? stopCount : 5;
-  // Where the handle sits, in the track's own pixels — the same clamp the
-  // stylesheet applies to handleLeft, so the two never disagree.
-  const handleCentre = boxes.track
-    ? Math.min(Math.max(6, (pct / 100) * boxes.track + handleInset), boxes.track - 6)
-    : 0;
-  // .sval is right: 8px and its measured width already carries its padding.
-  const splitHandle = !mobile && !editing && boxes.track > 0 && boxes.val > 0
-    && handleCentre + 2 > boxes.track - 8 - boxes.val
-    && handleCentre - 2 < boxes.track - 8;
 
   // Signed: positive stretches the right edge, negative the left. Zero means
   // the pointer is on the track and the box is its plain self. The ref is
@@ -127,7 +131,7 @@ function SliderControl({ def, value, onChange }: RowProps) {
     if (clientX > restRight) applyRubber(rubberBand(clientX - restRight, rubberMax.current));
     else if (clientX < restLeft) applyRubber(-rubberBand(restLeft - clientX, rubberMax.current));
     else applyRubber(0);
-    const t = Math.max(0, Math.min(1, (clientX - restLeft) / (restRight - restLeft)));
+    const t = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
     const effectiveStep = fine ? step * 0.1 : step;
     const snapped = Math.round((min + t * (max - min)) / effectiveStep) * effectiveStep;
     onChange(Number(Math.max(min, Math.min(max, snapped)).toFixed(4)));
@@ -173,23 +177,6 @@ function SliderControl({ def, value, onChange }: RowProps) {
     setSheetOpen(false);
   };
 
-  // Letting go has to put the edge back even if the pointer never came home.
-  // Re-runs when the readout unmounts for typing, so the observer is never
-  // holding a node that is gone.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const measure = () => setBoxes({
-      track: track.getBoundingClientRect().width,
-      val: valRef.current?.getBoundingClientRect().width ?? 0,
-    });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(track);
-    if (valRef.current) ro.observe(valRef.current);
-    return () => ro.disconnect();
-  }, [editing]);
-
   const endDrag = () => {
     pressed.current = false;
     setDragging(false);
@@ -199,8 +186,15 @@ function SliderControl({ def, value, onChange }: RowProps) {
   return (
     <div
       ref={trackRef}
-      className={`strack ${mobile ? 'strack-mobile' : ''} ${dragging ? 'is-dragging' : ''}`}
-      tabIndex={0}
+      className={`strack ${mobile ? 'strack-mobile' : ''} ${dragging ? 'is-dragging' : ''} ${disabled ? 'is-disabled' : ''}`}
+      tabIndex={editing || disabled ? -1 : 0}
+      role="slider"
+      aria-disabled={disabled}
+      aria-label={def.label}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={num}
+      aria-valuetext={`${num.toFixed(decimals)}${def.unit ?? ''}`}
       // Signed sliders and the readout both live off the track's own box, so
       // the band grows the box and cancels it with a margin: the outer size
       // stays 100%, the flex parent sees no overflow, and nothing inside is
@@ -212,7 +206,7 @@ function SliderControl({ def, value, onChange }: RowProps) {
           : { marginLeft: `${rubber.toFixed(2)}px` }),
       }}
       onPointerDown={(e) => {
-        if (editing) return;
+        if (editing || disabled) return;
         try { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); } catch { /* no live pointer: nothing to capture */ }
         // Read the allowance once per drag rather than per move: the token is
         // the single source of truth, getComputedStyle is not free.
@@ -227,7 +221,7 @@ function SliderControl({ def, value, onChange }: RowProps) {
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
       onKeyDown={(e) => {
-        if (editing) return;
+        if (editing || disabled) return;
         if (e.key === 'Enter') { e.preventDefault(); startEdit(); return; }
         if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(e.key)) return;
         e.preventDefault();
@@ -237,24 +231,26 @@ function SliderControl({ def, value, onChange }: RowProps) {
       }}
       onDoubleClick={(e) => {
         // double-click resets to the control's declared default
-        if (editing) return;
+        if (editing || disabled) return;
         if ((e.target as HTMLElement).closest('.sval, .sval-input')) return;
         const d = Number(def.default);
         if (Number.isFinite(d)) onChange(d);
       }}
       title="Double-click to reset"
     >
+      <span className="slabel" aria-hidden="true">{def.label}</span>
+      <div className="srange" aria-hidden="true">
       {/* A control that spans zero fills FROM zero, not from the left edge:
           right of centre reads positive, left reads negative, and zero reads
           empty. Filling from the edge made a signed slider look like a
           magnitude bar — Card Bend at 0 showed a half-full track, which reads
           as "half on" rather than "neutral". */}
       {/* Plain copy first, so the opaque fill paints over it. */}
-      <div className="sticks" style={{ '--tick-n': tickN } as CSSProperties} />
-      <div className={`shandle ${splitHandle ? 'is-split' : ''}`} style={{ left: handleLeft }} />
+      <div className="shandle" style={{ left: handleLeft }} />
       <div className="sfill" style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }} />
       {signed && <div className="szero" style={{ left: `${zeroPct}%` }} />}
       {mobile && dragging && <output className="slider-bubble" style={{ left: `${pct}%` }}>{num.toFixed(decimals)}{def.unit ?? ''}</output>}
+      </div>
       {editing ? (
         <input
           className="sval-input"
@@ -295,7 +291,6 @@ function SliderControl({ def, value, onChange }: RowProps) {
         />
       ) : (
         <span
-          ref={valRef}
           className="sval"
           title={mobile ? 'Tap to enter an exact value' : 'Click to type an exact value'}
           // pointerdown only shields the track from starting a drag — pressing
@@ -305,6 +300,7 @@ function SliderControl({ def, value, onChange }: RowProps) {
           onPointerDown={(e) => { e.stopPropagation(); valPress.current = { x: e.clientX, y: e.clientY }; }}
           onClick={(e) => {
             e.stopPropagation();
+            if (disabled) return;
             const from = valPress.current;
             valPress.current = null;
             if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > 4) return;
@@ -313,25 +309,6 @@ function SliderControl({ def, value, onChange }: RowProps) {
         >
           {num.toFixed(decimals)}{def.unit ?? ''}
         </span>
-      )}
-      {/* The same handle and the same readout at the same coordinates, in the
-          on-fill colours, clipped to exactly the fill's span. A glyph sitting
-          on the leading edge is cut down the middle — that split is what the
-          gesture reads as in the reference, not the bar's width. Hidden while
-          typing: the input owns the corner then. */}
-      {!editing && (
-        <div
-          className="sinv"
-          aria-hidden="true"
-          style={{ clipPath: `inset(0 ${(100 - (fillLeft + fillWidth)).toFixed(3)}% 0 ${fillLeft.toFixed(3)}%)` }}
-        >
-          <div className={`shandle ${splitHandle ? 'is-split' : ''}`} style={{ left: handleLeft }} />
-          {/* The zero anchor sits exactly where the fill begins, so on a
-              signed slider it is half under the bar — a --fg tick on a --fg
-              fill is nothing at all. It needs the inverted copy too. */}
-          {signed && <div className="szero" style={{ left: `${zeroPct}%` }} />}
-          <span className="sval">{num.toFixed(decimals)}{def.unit ?? ''}</span>
-        </div>
       )}
       {mobile && sheetOpen && (
         <MobileSheet title={def.label} onClose={() => setSheetOpen(false)}>
@@ -670,11 +647,11 @@ function XYPadControl({ def, value, onChange }: RowProps) {
   );
 }
 
-function UploadControl({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+function UploadControl({ def, value, onChange }: RowProps) {
   return (
     <label className="upload">
       <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onChange(URL.createObjectURL(f)); }} />
-      <span>{value ? 'Replace file…' : 'Choose file…'}</span>
+      <span>{value ? `Replace ${def.label.toLowerCase()}` : `Upload ${def.label.toLowerCase()}`}</span>
     </label>
   );
 }

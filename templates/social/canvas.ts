@@ -26,7 +26,7 @@ export function wrapText(ctx: CanvasRenderingContext2D, text: string, width: num
 
 // Text is authored in a Figma line box; fit longer edits inside that box.
 export function textBox(ctx: CanvasRenderingContext2D, text: string, box: {
-  x: number; y: number; width: number; height: number; size: number; weight: number; lineHeight: number; align?: 'left' | 'center'; tracking?: number;
+  x: number; y: number; width: number; height: number; size: number; weight: number; lineHeight: number; align?: 'left' | 'center' | 'right'; tracking?: number;
 }) {
   let size = box.size;
   let lines: string[] = [];
@@ -56,7 +56,7 @@ export function textBox(ctx: CanvasRenderingContext2D, text: string, box: {
   const descent = metrics.fontBoundingBoxDescent;
   const baseline = (lineHeight - ascent - descent) / 2 + ascent;
   ctx.textAlign = box.align ?? 'left';
-  const x = box.align === 'center' ? box.x + box.width / 2 : box.x;
+  const x = box.align === 'center' ? box.x + box.width / 2 : box.align === 'right' ? box.x + box.width : box.x;
   lines.forEach((line, i) => ctx.fillText(line, x, box.y + baseline + i * lineHeight));
   return lines.length * lineHeight;
 }

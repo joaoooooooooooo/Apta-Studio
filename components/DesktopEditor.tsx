@@ -21,6 +21,7 @@ import MockupPanel from '@/components/MockupPanel';
 import ProjectDock from '@/components/ProjectDock';
 import ProjectsBrowser from '@/components/ProjectsBrowser';
 import ScenePanel from '@/components/ScenePanel';
+import CopySocialProperties from '@/components/CopySocialProperties';
 import ScreenContent from '@/components/ScreenContent';
 import TemplatesCard from '@/components/TemplatesCard';
 import Timeline from '@/components/Timeline';
@@ -105,6 +106,7 @@ export default function DesktopEditor() {
               <ScenePanel />
               <div className="hairline" />
               {!isSocial && !isArtwork && <EffectsPanel />}
+              {!isSocial && !isArtwork && <CopySocialProperties />}
             </>
           )}
         </section>
@@ -158,7 +160,7 @@ export default function DesktopEditor() {
           // clip — nothing advances its clock on its own, so a play button
           // and a scrubber for a frame that never moves read as broken.
           showScrubber={!is3D}
-          extra={isWeb ? <WebSourceBar /> : isBoard ? <BoardExportBar /> : undefined}
+          extra={isWeb ? <WebSourceBar /> : isBoard ? <BoardExportBar /> : nav === 'library' ? <SocialExport compact /> : undefined}
         />}
       </footer>
 

@@ -31,6 +31,7 @@ const MAX_ENTRIES = 60;
 // (frame / playing) and minus customPresets, which is a user-wide library rather
 // than part of any one scene.
 const KEYS = [
+  'carouselSlides', 'activeSlideId',
   'tracks', 'activeTrackId',
   'fps', 'duration',
   'aspect', 'width', 'height', 'customW', 'customH',

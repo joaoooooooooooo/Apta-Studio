@@ -8,10 +8,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { capturePoster } from '@/lib/projectPoster';
 import { preloadMockupProject } from '@/lib/mockupPreload';
-import { IS_HOSTED_DEPLOYMENT, REPO_URL } from '@/lib/deployment';
-import NewsNotifier from './NewsNotifier';
-import UpdateNotifier from './UpdateNotifier';
-import { AddIcon, BoardIcon, DocsIcon, GithubIcon, LibraryIcon, MockupIcon, ProjectsIcon, ThemeGlyph, ThreeDIcon, WebIcon } from './EditorIcons';
+import { AddIcon, BoardIcon, LibraryIcon, MockupIcon, ProjectsIcon, ThemeGlyph, ThreeDIcon, WebIcon } from './EditorIcons';
 
 const ICONS: Record<NavSectionId, React.ReactNode> = {
   projects: <ProjectsIcon />,
@@ -26,7 +23,9 @@ export default function IconRail() {
   // The URL owns the active section (EditorShell mirrors it into the store for
   // the panels). Reading the pathname here means back/forward and pasted links
   // light up the right rail item without a second source of truth.
-  const active = sectionFromPathname(usePathname());
+  const pathname = usePathname();
+  const isMedia = pathname === '/media';
+  const active = sectionFromPathname(pathname);
   const router = useRouter();
   const theme = useUIStore((s) => s.theme);
   const setNav = useUIStore((s) => s.setNav);
@@ -75,7 +74,6 @@ export default function IconRail() {
           <div className="rail-logo">
             <LogoMark />
           </div>
-          <span className="beta-tag rail-beta-tag">Beta</span>
         </div>
         <button className="rail-item rail-action" onClick={newProject} title="Create a new project">
           <span className="rail-ico">
@@ -83,7 +81,7 @@ export default function IconRail() {
           </span>
           <span className="rail-label">New</span>
         </button>
-        {NAV_SECTIONS.map((n) => (
+        {NAV_SECTIONS.filter((n) => !['mockup', '3d', 'web'].includes(n.id)).map((n) => (
           isSectionAvailable(n.id) ? (
             <Link
               key={n.id}
@@ -94,8 +92,8 @@ export default function IconRail() {
               onClick={() => leaveSection(n.id)}
               onPointerEnter={n.id === 'mockup' ? warmMockup : undefined}
               onFocus={n.id === 'mockup' ? warmMockup : undefined}
-              aria-current={active === n.id ? 'page' : undefined}
-              className={`rail-item ${active === n.id ? 'active' : ''}`}
+              aria-current={!isMedia && active === n.id ? 'page' : undefined}
+              className={`rail-item ${!isMedia && active === n.id ? 'active' : ''}`}
             >
               <span className="rail-ico">{ICONS[n.id]}</span>
               <span className="rail-label">{n.label}</span>
@@ -120,27 +118,10 @@ export default function IconRail() {
         ))}
       </div>
       <div className="rail-bottom">
-        {IS_HOSTED_DEPLOYMENT ? <NewsNotifier /> : <UpdateNotifier />}
-        {/* /docs sits outside the (editor) route group and does NOT mount
-            EditorShell, so opening it drops the Pixi and three contexts instead
-            of keeping a second set alive behind a reader. It is therefore not a
-            section — it stays out of NAV_SECTIONS — and it takes no active
-            state: the docs bring their own chrome, so this rail is not even on
-            screen while you are reading them. */}
-        <Link href="/docs" className="rail-item" title="Documentation">
-          <span className="rail-ico"><DocsIcon /></span>
-          <span className="rail-label">Docs</span>
+        <Link href="/media" className={`rail-item ${isMedia ? 'active' : ''}`} aria-current={isMedia ? 'page' : undefined} title="Media library">
+          <span className="rail-ico" aria-hidden>▦</span>
+          <span className="rail-label">Media</span>
         </Link>
-        <a
-          className="rail-item"
-          href={REPO_URL}
-          target="_blank"
-          rel="noreferrer noopener"
-          title="Source on GitHub"
-        >
-          <span className="rail-ico"><GithubIcon /></span>
-          <span className="rail-label">GitHub</span>
-        </a>
         <button
           className="rail-item rail-theme"
           onClick={toggleTheme}

@@ -2,19 +2,21 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Agentation } from 'agentation';
 import '../styles/tokens.css';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
+  icons: { icon: [{ url: '/brand-icon.gif?v=2', type: 'image/gif' }] },
   // Section routes set their own short title ('Mockup', 'Library'…) and the
   // template gives them the product name.
   title: {
-    default: 'motion-studio-open',
-    template: '%s · motion-studio-open',
+    default: 'Apta Studio',
+    template: '%s · Apta Studio',
   },
-  description: 'motion-studio-open — an open-source factory for quick videos and GIFs.',
+  description: 'Apta Studio — an open-source factory for quick videos and GIFs.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={inter.variable}>
         {children}
+        {process.env.NODE_ENV === 'development' && <Agentation />}
         <SpeedInsights />
         <Analytics />
       </body>

@@ -27,10 +27,9 @@ export default function SocialPhotoControl({ def }: { def: ControlDef }) {
   };
   return <div className="ctl-section">
     <div className="ctl-row">
-      <label className="ctl-label" htmlFor={'social-' + def.key}>{def.label}</label>
       <div className="ctl-input"><label className="upload">
         <input id={'social-' + def.key} type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
-        <span>{busy ? 'Saving photo...' : 'Replace photo...'}</span>
+        <span>{busy ? 'Saving photo...' : `Upload ${def.label.toLowerCase()}`}</span>
       </label></div>
     </div>
     {value !== def.default && <button className="btn full" disabled={busy} onClick={() => useSceneStore.getState().setValue(def.key, def.default)}>Reset photo</button>}

@@ -5,6 +5,12 @@ import { variant } from './variant';
 
 const BASE = 340;
 const DEG = Math.PI / 180;
+const WHEEL_DEPTH_SCALE = 1000;
+
+function wheelPhase(frame: number, count: number, v: Record<string, any>, ctx: Parameters<Template['transform']>[4]) {
+  const dir = v.direction === 'reverse' ? -1 : 1;
+  return ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count) * dir);
+}
 
 // Wheel — cards on a rotating ring (or a fan arc). Featured card is the one
 // nearest the top of the wheel; Spin Thumbs tilts cards along the tangent.
@@ -31,8 +37,7 @@ const wheel: Template = {
   ],
 
   transform: (frame, index, count, v, ctx) => {
-    const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count) * dir);
+    const phase = wheelPhase(frame, count, v, ctx);
     const sizeFactor = v.cardSize / BASE;
 
     const kind = v.mode === 'fan' ? 'arc' : 'ring';
@@ -106,3 +111,49 @@ export const wheelVariants: Template[] = [
     offset: { x: 0, y: 0 }, bigScale: 100, cornerRadius: 0,
   }),
 ];
+
+const galleryWheel = variant(wheel, 'wheel-gallery-text', 'Ferris Gallery Text', {
+  direction: 'forward', mode: 'fan', spinThumbs: 'off', count: 7,
+  radius: 314, cardSize: 314, cornerRadius: 28, bigScale: 106,
+  cycleDeg: 180, speed: 0.9, offset: { x: 0, y: 0 }, fade: 0,
+});
+
+galleryWheel.meta.isNew = true;
+galleryWheel.meta.defaultDuration = 12;
+galleryWheel.meta.defaultFps = 30;
+galleryWheel.meta.defaultCanvas = { width: 864, height: 1080 };
+galleryWheel.controls.push(
+  { key: 'captions', label: 'Card text', type: 'text', multiline: true,
+    default: 'First item\nSecond item\nThird item\nFourth item\nFifth item\nSixth item\nSeventh item',
+    section: 'Layout', description: 'One line per card, in wheel order.' },
+  { key: 'textPosition', label: 'Text position', type: 'xypad', max: 540, default: { x: 0, y: 430 }, section: 'Layout' },
+  { key: 'textSize', label: 'Text size', type: 'slider', min: 12, max: 160, step: 1, default: 48, unit: 'px', section: 'Layout' },
+  { key: 'textColor', label: 'Text color', type: 'color', default: '#ffffff', section: 'Finish' },
+  { key: 'textWidth', label: 'Text width', type: 'slider', min: 100, max: 1080, step: 10, default: 700, unit: 'px', section: 'Layout' },
+);
+galleryWheel.textOverlay = (frame, count, values, ctx) => {
+  const phase = wheelPhase(frame, count, values, ctx);
+  // Match the actual topmost card. The wheel changes its featured card near
+  // half a step, and the renderer resolves exact ties by the card index.
+  const kind = values.mode === 'fan' ? 'arc' : 'ring';
+  let index = 0;
+  let topZ = -Infinity;
+  for (let i = 0; i < count; i++) {
+    const path = cardPath({ kind, index: i, count, phase, radius: values.radius,
+      arcSpan: (values.cycleDeg ?? 180) * DEG, wrap: true });
+    const z = path.depthNorm * WHEEL_DEPTH_SCALE + i;
+    if (z > topZ) { topZ = z; index = i; }
+  }
+  const lines = String(values.captions ?? '').split(/\r?\n/);
+  const position = values.textPosition ?? { x: 0, y: 430 };
+  return {
+    text: lines[index] ?? `Item ${index + 1}`,
+    x: Number(position.x) || 0,
+    y: Number(position.y) || 0,
+    fontSize: Number(values.textSize) || 48,
+    color: String(values.textColor ?? '#ffffff'),
+    maxWidth: Number(values.textWidth) || 700,
+  };
+};
+
+wheelVariants.push(galleryWheel);

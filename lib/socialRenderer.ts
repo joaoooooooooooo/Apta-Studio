@@ -3,13 +3,15 @@ import type { IRenderer } from './rendererTypes';
 import { useSceneStore } from '@/store/useSceneStore';
 import { loadSocialFonts, loadSocialImages } from './socialAssets';
 import { socialTheme } from '@/templates/social/theme';
+import { drawTemplateText } from './templateText';
 import { testArtwork } from '@/templates/social/test/draw';
 import { testimonialArtwork } from '@/templates/social/testimonial/draw';
+import { withWithoutArtwork } from '@/templates/social/with-without/draw';
 import { channelThreadArtwork } from '@/templates/social/channel-thread/draw';
 import { wordGatherArtwork } from '@/templates/social/word-gather/draw';
 import type { SocialArtwork, SocialImages, SocialValues } from '@/templates/social/types';
 
-const artworks: Record<string, SocialArtwork> = { 'social-test': testArtwork, 'social-testimonial': testimonialArtwork, 'social-channel-thread': channelThreadArtwork, 'social-word-gather': wordGatherArtwork, 'chip-announce-title': announceTitleArtwork };
+const artworks: Record<string, SocialArtwork> = { 'social-test': testArtwork, 'social-testimonial': testimonialArtwork, 'social-with-without': withWithoutArtwork, 'social-channel-thread': channelThreadArtwork, 'social-word-gather': wordGatherArtwork, 'chip-announce-title': announceTitleArtwork };
 export function socialArtwork(id: string): SocialArtwork {
   const artwork = artworks[id];
   if (!artwork) throw new Error('Unknown social template: ' + id);
@@ -81,6 +83,8 @@ export class SocialRenderer implements IRenderer {
       return;
     }
     drawSocialArtwork(this.canvas, s.activeTemplateId, s.values, this.resources, frame / s.fps);
+    const ctx = this.canvas.getContext('2d');
+    if (ctx) drawTemplateText(ctx, s.width, s.height, s.values, this.canvas.width / s.width);
   }
   captureFrame(frame = 0) { this.renderFrame(frame); return this.canvas.toDataURL('image/png'); }
   setCaptureScale(k: number) { const s = useSceneStore.getState(); this.resize(s.width, s.height, k); }

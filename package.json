@@ -1,7 +1,7 @@
 {
-  "name": "motion-studio-open",
+  "name": "apta-studio",
   "version": "1.0.0",
-  "description": "Motion Studio — an open-source factory for quick videos and GIFs.",
+  "description": "Apta Studio — an open-source factory for quick videos and GIFs.",
   "main": "index.js",
   "scripts": {
     "test:social": "node scripts/verify-social-kpi.cjs && node scripts/verify-channel-thread.cjs && node scripts/verify-word-gather.cjs && node scripts/verify-motion-chip-layers.cjs && node scripts/verify-announce-title.cjs && node scripts/verify-motion-chip-export.cjs",
@@ -46,6 +46,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.1",
+    "agentation": "^3.1.2",
     "esbuild": "^0.28.2",
     "playwright-core": "^1.61.1",
     "puppeteer-core": "^25.3.0",

@@ -14,6 +14,7 @@
 // it. Two contexts total for the whole catalogue (this one and the three one).
 import * as PIXI from 'pixi.js';
 import { SocialMotionHeader } from '@/lib/socialMotionHeader';
+import { loadSocialFonts } from '@/lib/socialAssets';
 import { socialPostColors } from '@/templates/social/theme';
 import type { LayerTransform, Template } from '@/lib/types';
 import { clamp } from '@/lib/motion';
@@ -45,6 +46,8 @@ interface Shared {
   stage: PIXI.Container;
   slots: Slot[];
   header: SocialMotionHeader;
+  textOverlay: PIXI.Text;
+  textStyleKey: string;
 }
 
 let shared: Shared | null = null;
@@ -116,12 +119,16 @@ export async function getShared2d(): Promise<Shared> {
     // reads the same as it does on the stage.
     stage.scale.set(THUMB_W / CTX_BASE.width);
     stage.position.set(THUMB_W / 2, THUMB_H / 2);
+    const textOverlay = new PIXI.Text({ text: '' });
+    textOverlay.anchor.set(0.5);
+    textOverlay.zIndex = 1_000_000;
+    stage.addChild(textOverlay);
     const header = new SocialMotionHeader();
     app.stage.addChild(stage, header.sprite);
 
     shared = {
       app, canvas, stage, header,
-      slots: [],
+      slots: [], textOverlay, textStyleKey: '',
     };
     return shared;
   })();
@@ -292,6 +299,23 @@ export function renderThumbFrame2d(ctx: Shared, template: Template, frame: numbe
     applyMask(slot, node, texW, texH, radius, taper ? undefined : t.clip);
   });
 
+  const caption = template.textOverlay?.(frame, count, v, tctx);
+  ctx.textOverlay.visible = !!caption;
+  if (caption) {
+    ctx.textOverlay.text = caption.text;
+    ctx.textOverlay.position.set(caption.x, caption.y);
+    const styleKey = `${caption.fontSize}|${caption.color}|${caption.maxWidth}`;
+    if (styleKey !== ctx.textStyleKey) {
+      ctx.textStyleKey = styleKey;
+      ctx.textOverlay.style = new PIXI.TextStyle({
+        fontFamily: 'Inter Tight, sans-serif', fontWeight: '500',
+        fontSize: caption.fontSize, fill: caption.color,
+        letterSpacing: -0.03 * caption.fontSize, lineHeight: 1.2 * caption.fontSize,
+        align: 'center', wordWrap: true, wordWrapWidth: caption.maxWidth,
+      });
+    }
+  }
+
   const socialMotion = template.meta.kind === 'social-motion';
   ctx.app.renderer.background.alpha = socialMotion ? 1 : 0;
   if (socialMotion) ctx.app.renderer.background.color = socialPostColors(v.postTheme).background;
@@ -302,6 +326,7 @@ export function renderThumbFrame2d(ctx: Shared, template: Template, frame: numbe
 /** Draw one frame and read it back as a still, for the idle thumbnail. */
 export async function snapshotThumb2d(template: Template, frame: number): Promise<string | null> {
   const ctx = await getShared2d();
+  if (template.textOverlay) await loadSocialFonts();
   if (template.meta.kind === 'social-motion') await ctx.header.prepare();
   // Initialising Pixi is asynchronous. A hover may have claimed the canvas
   // while that await was in flight, so wait again immediately before drawing.

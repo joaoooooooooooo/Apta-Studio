@@ -9,7 +9,7 @@ export default function IntroductionPage() {
       <h1>Introduction</h1>
 
       <p className="docs-lead">
-        Motion Studio turns a folder of images into a short video, a GIF or a device
+        Apta Studio turns a folder of images into a short video, a GIF or a device
         mockup. It runs on your own machine: nothing is uploaded, and the MP4 you download
         was encoded by your own browser.
       </p>

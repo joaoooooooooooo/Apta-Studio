@@ -28,10 +28,10 @@ export default function DocsHeader({ onSuggest }: { onSuggest: () => void }) {
   return (
     <header className="docs-header">
       <Link href="/docs" className="docs-brand">
-        <LogoMark height={17} />
+        <LogoMark height={24} />
         {/* Wrapped so the narrow layout can drop the wordmark and keep the mark:
             measured, the header's content needed 455px in a 375px viewport. */}
-        <span className="docs-brand-name">Motion Studio</span>
+        <span className="docs-brand-name">Apta Studio</span>
         <span className="docs-brand-tag">docs</span>
       </Link>
 

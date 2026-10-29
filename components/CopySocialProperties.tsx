@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import { getTemplate } from '@/templates';
 import { trackWindow } from '@/lib/tracks';
-import { socialProperties } from '@/lib/socialProperties';
+import { motionProperties, socialProperties } from '@/lib/socialProperties';
 
 export default function CopySocialProperties() {
   const [status, setStatus] = useState('');
@@ -12,11 +12,16 @@ export default function CopySocialProperties() {
     const s = useSceneStore.getState();
     const track = s.tracks.find(t => t.id === s.activeTrackId);
     const duration = s.tracks.length > 1 && track ? trackWindow(track, Math.round(s.duration * s.fps)).length / s.fps : s.duration;
-    const text = JSON.stringify(socialProperties(getTemplate(s.activeTemplateId), s.values, {
+    const template = getTemplate(s.activeTemplateId);
+    const timing = {
       duration, fps: s.fps,
       width: s.aspect === 'custom' ? s.customW : s.width,
       height: s.aspect === 'custom' ? s.customH : s.height, easing: s.easing,
-    }), null, 2);
+    };
+    const properties = template.meta.kind === 'social'
+      ? socialProperties(template, s.values, timing)
+      : motionProperties(template, s.values, timing, s);
+    const text = JSON.stringify(properties, null, 2);
     try {
       await navigator.clipboard.writeText(text);
       setFallback(''); setStatus('Properties copied');

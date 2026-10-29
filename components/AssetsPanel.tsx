@@ -97,12 +97,12 @@ function MobileAssetRow({
         {!asset.url ? (
           <span className="asset-thumb asset-thumb-empty" onClick={onReplace}>+</span>
         ) : isVideoSource(asset.url, asset.kind) ? (
-          <video className="asset-thumb" src={asset.url} muted playsInline preload="metadata" onClick={onReplace} />
+          <video className="asset-thumb" src={asset.url} muted playsInline preload="metadata" onClick={onCrop} />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="asset-thumb" src={asset.url} alt={asset.name} onClick={onReplace} />
+          <img className="asset-thumb" src={asset.url} alt={asset.name} onClick={onCrop} />
         )}
-        <span className="asset-name" title={asset.name}>{asset.name}</span>
+        <button className="asset-name asset-replace" title={`Replace ${asset.name}`} onClick={onReplace}>{asset.name}</button>
         <button className="icon-btn mobile-crop-open" data-crop-asset={asset.id} aria-label={`Adjust ${asset.name}`} disabled={!asset.url} onClick={onCrop}><CropIcon size={16}/></button>
         <button
           className="mobile-drag-handle"
@@ -118,7 +118,7 @@ function MobileAssetRow({
   );
 }
 
-export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string) => void }) {
+export default function AssetsPanel({ onEditAsset, onAdjustAsset }: { onEditAsset: (index: number) => void; onAdjustAsset: (index: number) => void }) {
   const mobile = useMobileInteractions();
   const assets = useSceneStore((s) => s.assets);
   // How many card slots the active template will actually fill — asked of the
@@ -132,7 +132,6 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
   const repeat = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.repeatAssets === true);
   const derivesCount = useSceneStore((s) => typeof getTemplate(s.activeTemplateId).layerCount === 'function');
   const addAssets = useSceneStore((s) => s.addAssets);
-  const replaceAssetAt = useSceneStore((s) => s.replaceAssetAt);
   const removeAsset = useSceneStore((s) => s.removeAsset);
   const toggleAsset = useSceneStore((s) => s.toggleAsset);
   const reorderAssets = useSceneStore((s) => s.reorderAssets);
@@ -163,9 +162,6 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
   const setVideoEnd = useSceneStore((s) => s.setVideoEnd);
   const hasVideo = useSceneStore((s) => s.assets.some((a) => a.origin !== 'demo' && isVideoSource(a.url, a.kind)));
   const fullBleed = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.cardAspect === 'canvas');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const slotInputRef = useRef<HTMLInputElement>(null);
-  const slotTarget = useRef<number>(0);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -233,11 +229,6 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
     if (items.length) addAssets(items);
   };
 
-  const openSlotPicker = (index: number) => {
-    slotTarget.current = index;
-    slotInputRef.current?.click();
-  };
-
   // Keep every uploaded slot visible, even when the active template renders
   // fewer layers. The old repeat-mode cap (`min(count, ...)`) hid uploads as
   // soon as a template had a low Count (often one), which also made those
@@ -270,16 +261,15 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
         <span className="badge">{filled}/{count}</span>
       </div>
       <div className="section-body">
-        <div
-          className={`dropzone ${dropActive ? 'over' : ''}`}
-          onClick={() => inputRef.current?.click()}
+        <label
+          className={`upload asset-dropzone ${dropActive ? 'over' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setDropActive(true); }}
           onDragLeave={() => setDropActive(false)}
           onDrop={(e) => { e.preventDefault(); setDropActive(false); ingest(e.dataTransfer.files); }}
         >
-          {repeat ? 'Drop images or videos — a few are enough, they repeat' : `Drop images or videos to fill ${count} ${count === 1 ? 'slot' : 'slots'}`}
-          <input ref={inputRef} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => e.target.files && ingest(e.target.files)} />
-        </div>
+          <span>Upload assets</span>
+          <input type="file" accept="image/*,video/*" multiple onChange={(e) => { if (e.target.files) ingest(e.target.files); e.target.value = ''; }} />
+        </label>
 
         <div className="asset-meta">
           <span>
@@ -360,24 +350,6 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
           </>
         )}
 
-        {/* hidden picker for empty-slot uploads */}
-        <input
-          ref={slotInputRef}
-          type="file"
-          accept="image/*,video/*"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) replaceAssetAt(slotTarget.current, {
-              name: f.name,
-              url: URL.createObjectURL(f),
-              kind: f.type.startsWith('video/') ? 'video' : 'image',
-              blob: f,
-            });
-            e.target.value = '';
-          }}
-        />
-
         {mobile ? (
           <DndContext
             sensors={sensors}
@@ -397,13 +369,13 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
                     index={index}
                     open={swipeOpenId === asset.id}
                     onOpen={(open) => setSwipeOpenId(open ? asset.id : null)}
-                    onReplace={() => openSlotPicker(index)}
-                    onCrop={() => onEditAsset(asset.id)}
+                    onReplace={() => onEditAsset(index)}
+                    onCrop={() => onAdjustAsset(index)}
                     onToggle={() => toggleAsset(asset.id)}
                     onRemove={() => removeAsset(asset.id)}
                   />
                 ) : (
-                  <li key={`mobile-empty-${index}`} className="mobile-asset-empty" onClick={() => openSlotPicker(index)}>
+                  <li key={`mobile-empty-${index}`} className="mobile-asset-empty" onClick={() => onEditAsset(index)}>
                     <span className="asset-idx">{index + 1}</span>
                     <span className="asset-thumb asset-thumb-empty">+</span>
                     <span className="mobile-slot-copy"><strong>Slot {index + 1}</strong><small>Drop or click to add</small></span>
@@ -436,7 +408,7 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
                 {!a.url ? (
                   // persisted upload still resolving from IndexedDB (or its bytes
                   // are gone) — show a clickable placeholder, never src="".
-                  <span className="asset-thumb asset-thumb-empty" onClick={() => openSlotPicker(i)} title="Re-add file">
+                  <span className="asset-thumb asset-thumb-empty" onClick={() => onEditAsset(i)} title="Edit media">
                     <AddIcon size={12}/>
                   </span>
                 ) : isVideoSource(a.url, a.kind) ? (
@@ -452,14 +424,14 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
                     onLoadedMetadata={(e) => { try { e.currentTarget.currentTime = 0.05; } catch { /* noop */ } }}
                     onMouseEnter={(e) => { e.currentTarget.play().catch(() => { /* noop */ }); }}
                     onMouseLeave={(e) => { const v = e.currentTarget; v.pause(); try { v.currentTime = 0.05; } catch { /* noop */ } }}
-                    onClick={() => openSlotPicker(i)}
-                    title="Replace"
+                    onClick={() => onAdjustAsset(i)}
+                    title="Adjust media"
                   />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
+                  <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => onAdjustAsset(i)} title="Adjust media" />
                 )}
-                <span className="asset-name" title={a.name}>{a.name}</span>
+                <button className="asset-name asset-replace" title={`Replace ${a.name}`} onClick={() => onEditAsset(i)}>{a.name}</button>
                 <span className="asset-mobile-order" aria-label={`Reorder ${a.name}`}>
                   <button
                     className="icon-btn"
@@ -483,7 +455,7 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
                 <button
                   className={`icon-btn ${a.crop && (a.crop.x !== 0.5 || a.crop.y !== 0.5 || (a.crop.zoom ?? 1) !== 1) ? 'crop-set' : ''}`}
                   data-crop-asset={a.id} title="Adjust media" aria-label={`Adjust ${a.name}`} disabled={!a.url}
-                  onClick={() => onEditAsset(a.id)}
+                  onClick={() => onAdjustAsset(i)}
                 >
                   <CropIcon size={12}/>
                 </button>
@@ -499,7 +471,7 @@ export default function AssetsPanel({ onEditAsset }: { onEditAsset: (id: string)
                 key={`empty-${i}`}
                 data-slot-idx={i}
                 className={`asset-item asset-empty ${overIdx === i && dragIdx !== null ? 'drop-target' : ''}`}
-                onClick={() => openSlotPicker(i)}
+                onClick={() => onEditAsset(i)}
               >
                 <span className="asset-idx">{i + 1}</span>
                 <span className="asset-thumb asset-thumb-empty">

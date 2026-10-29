@@ -6,6 +6,8 @@ import type { IRenderer } from '@/lib/rendererTypes';
 import { setRendererInstance } from '@/lib/rendererInstance';
 import { useSceneStore } from '@/store/useSceneStore';
 import { getTemplate } from '@/templates';
+import CarouselStage from './CarouselStage';
+import CanvasTextEditor from './CanvasTextEditor';
 
 // Um renderer por engine, guardado pela vida da pagina.
 //
@@ -218,6 +220,6 @@ export default function PreviewStage() {
   }, [width, height]);
 
   return (
-    <div ref={stageRef} className="stage-wrap" />
+    <><CarouselStage><div ref={stageRef} className="stage-wrap" /></CarouselStage><CanvasTextEditor stageRef={stageRef} /></>
   );
 }

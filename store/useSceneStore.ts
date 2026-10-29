@@ -76,6 +76,8 @@ export interface LogoSettings {
   url: string | null;
   position: 'tl' | 'tr' | 'bl' | 'br';
   size: number; // px
+  x?: number; // 0..100, from left to right inside the logo's safe bounds
+  y?: number; // 0..100, from top to bottom inside the logo's safe bounds
 }
 
 // A named snapshot of a composition: the template, its values, its easing —
@@ -117,6 +119,8 @@ function persistFavorites(ids: string[]) {
 }
 
 export interface SceneState {
+  carouselSlides: { id: string; templateId: string; values: Record<string, any>; duration?: number; frame?: number; assets?: SceneState['assets']; preview?: string }[];
+  activeSlideId: string;
   // ---- motion tracks: stacked motion layers, drawn in array order ----
   // The source of truth for what animates. See lib/tracks.ts.
   tracks: MotionTrack[];
@@ -350,6 +354,8 @@ function initialSceneState() {
     ...projectActive(tracks, tracks[0].id),
 
     frame: 0,
+    carouselSlides: [],
+    activeSlideId: '',
     fps: 30,
     duration: 8,
     playing: true, // autoplay loop by default
@@ -388,7 +394,17 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   favoriteTemplateIds: [],
 
   setValue: (key, val) =>
-    set((s) => withTrack(s, s.activeTrackId, { values: { ...s.values, [key]: val } })),
+    set((s) => {
+      const next = withTrack(s, s.activeTrackId, { values: { ...s.values, [key]: val } });
+      if (key !== 'count' || templates[s.activeTemplateId]?.meta.group !== 'Runway' || s.tracks.length !== 1) return next;
+      const before = Number(s.values.count), after = Number(val);
+      if (!Number.isFinite(before) || !Number.isFinite(after) || before <= 0 || after <= 0) return next;
+      // A Runway clip traverses one complete set. Keep seconds per card when
+      // Count changes; fitting 20 into the six-card duration rushes the wave.
+      const ratio = after / before;
+      const duration = s.duration * ratio;
+      return { ...next, duration, frame: Math.min(Math.round(duration * s.fps) - 1, Math.round(s.frame * ratio)) };
+    }),
 
   // full reset on template switch: wipe bag, refill from declared defaults,
   // and seed the track easing from the template's default curve. Only the
@@ -529,11 +545,12 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       const runwayRefDuration = carouselReferenceDurations[id];
       const isRunwayRefPreset = runwayRefDuration !== undefined;
       const referenceAspect = (isSpinnerPreset || isStickerPreset || isPosterPreset || isArcPreset) ? '4:5'
-        : isOrbit3dPreset ? (ORBIT_3D_SQUARE.has(id) ? '1:1' : '4:5')
+        : isOrbit3dPreset && id !== 'orbit-3d-12' ? (ORBIT_3D_SQUARE.has(id) ? '1:1' : '4:5')
           : isWheelRefPreset ? '1:1'
             : isRunwayRefPreset || isRef2dPreset || isGlobeRefPreset || isRef3dPreset ? '3:4'
               : null;
       const referenceCanvas = referenceAspect ? dimsFor(referenceAspect) : null;
+      const authoredCanvas = templates[id]?.meta.socialSize ?? templates[id]?.meta.defaultCanvas;
       // A blank scene has no track to patch, so the first pick BECOMES Layer 1.
       // Without this the click would land on nothing and picking a template in a
       // new project would look broken.
@@ -551,11 +568,12 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       return {
         ...layers,
         ...(s.tracks.length <= 1 && templates[id]?.meta.defaultFps ? { fps: templates[id].meta.defaultFps } : {}),
-        ...(templates[id]?.meta.socialSize && (s.tracks.length <= 1 || templates[id]?.meta.group === 'Social') ? {
-          playing: templates[id].meta.kind === 'social-motion', aspect: 'custom',
-          customW: templates[id].meta.socialSize?.width ?? 1080,
-          customH: templates[id].meta.socialSize?.height ?? 1080,
-          ...previewDims(templates[id].meta.socialSize?.width ?? 1080, templates[id].meta.socialSize?.height ?? 1080),
+        ...(authoredCanvas && (s.tracks.length <= 1 || templates[id]?.meta.group === 'Social') ? {
+          ...(templates[id].meta.socialSize ? { playing: templates[id].meta.kind === 'social-motion' } : {}),
+          aspect: 'custom',
+          customW: authoredCanvas.width,
+          customH: authoredCanvas.height,
+          ...previewDims(authoredCanvas.width, authoredCanvas.height),
         } : {}),
         // These reconstructed families have an intrinsic source ratio, just as
         // their reference presets do. Users can still change it afterwards.
@@ -570,13 +588,13 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         // template's own declared cardAspect. Any fixed shape here overrides it
         // and every preset comes out the same proportion.
         cardShape: templates[id]?.meta.kind === 'social-motion' ? 'auto' : isSpinnerPreset || isOrbit3dPreset || isArcPreset || isWheelRefPreset ? 'auto' : isStickerPreset ? '1:1' : isPosterPreset ? '4:5' : s.cardShape,
-        duration: s.tracks.length > 1 ? s.duration : templates[id]?.meta.kind === 'social-motion' ? (templates[id].meta.defaultDuration ?? 8) : isSpinnerPreset ? spinnerDuration : isStickerPreset ? stickerDuration : isPosterPreset ? posterDuration
+        duration: s.tracks.length > 1 ? s.duration : templates[id]?.meta.defaultDuration != null ? templates[id].meta.defaultDuration : templates[id]?.meta.kind === 'social-motion' ? 8 : isSpinnerPreset ? spinnerDuration : isStickerPreset ? stickerDuration : isPosterPreset ? posterDuration
           : isPulseRefPreset ? pulseDuration : isFlipPreset ? 12 : isOrbit3dPreset ? orbitDuration
             : isArcPreset ? arcDuration : isWheelRefPreset ? wheelRefDuration
               : isRunwayRefPreset ? runwayRefDuration
                 : isRef2dPreset ? ref2dDuration : isGlobeRefPreset ? globeRefDuration
                   : isRef3dPreset ? ref3dDuration : s.duration,
-        ...((isSpinnerPreset || isStickerPreset || isPosterPreset) && !s.background.userSet ? {
+        ...((isSpinnerPreset || isStickerPreset || isPosterPreset || id === 'orbit-3d-12') && !s.background.userSet ? {
           background: { ...s.background, source: 'color' as const, color: '#FFFFFF', gradient: false },
         } : {}),
         ...(referenceCanvas && referenceAspect ? { aspect: referenceAspect, ...referenceCanvas } : {}),
@@ -965,9 +983,24 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         ),
       };
 
+      const runwayTrack = safeTracks.length === 1 && templates[safeTracks[0].templateId]?.meta.group === 'Runway'
+        ? safeTracks[0] : null;
+      const authoredRunwayDuration = runwayTrack
+        ? carouselReferenceDurations[runwayTrack.templateId] : undefined;
+      const savedDuration = partial.duration ?? s.duration;
+      // Scenes saved while Count could reach 20 but duration still reflected
+      // the original six-card preset need one cadence repair on load.
+      const repairedDuration = runwayTrack && authoredRunwayDuration !== undefined
+        && Number(runwayTrack.values.count) > 6
+        && Math.abs(savedDuration - authoredRunwayDuration) < 0.001
+        ? savedDuration * Number(runwayTrack.values.count) / 6 : savedDuration;
+
       return {
         ...s,
         ...partial,
+        duration: repairedDuration,
+        carouselSlides: Array.isArray(partial.carouselSlides) ? partial.carouselSlides.filter(slide => slide.templateId in templates) : [],
+        activeSlideId: partial.activeSlideId ?? '',
         background,
         assets,
         // Rebuilt, never inherited: a project saved before the shot existed must

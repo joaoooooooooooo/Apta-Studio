@@ -99,7 +99,10 @@ function runwayPose(
   const middle = Math.floor(visible / 2);
   const lag = dir > 0 ? slot + middle : (count - 1 - slot + middle);
 
-  const pc = base - lag * staggerPhase;
+  // Stagger is relative to the travelling wave, not to elapsed laps. Without
+  // subtracting `base` from the unrolled slot, the delay accumulates once per
+  // card and a 20-card clip ends several slots short before snapping to zero.
+  const pc = base - (lag - base) * staggerPhase;
   const move = 1 - clamp((v.hold ?? 0) / 100, 0, 0.95);
   // Move first, then rest — the reference's own order. f(n) = n at every integer
   // either way, so the loop still closes.
@@ -230,7 +233,7 @@ export const carousel: Template = {
     { key: 'direction',    label: 'Direction',     type: 'pills', options: ['left','right','up','down'], default: 'left' },
     { key: 'display',      label: 'Show',          type: 'pills', options: ['strip','single'], default: 'strip',
       description: 'single keeps only the card nearest the middle — one image slides through the frame at a time.' },
-    { key: 'count',        label: 'Count',         type: 'slider', min: 1, max: 12, step: 1,   default: 6 },
+    { key: 'count',        label: 'Count',         type: 'slider', min: 1, max: 20, step: 1,   default: 6 },
     { key: 'cardSize',     label: 'Plane Size',    type: 'slider', min: 50, max: 800, step: 1, default: 340 },
     { key: 'cornerRadius', label: 'Corner Radius', type: 'slider', min: 0, max: 100, step: 1,  default: 12 },
     { key: 'gap',          label: 'Gap',           type: 'slider', min: 0, max: 600, step: 1,  default: 360 }, // px between card centres (at base size)

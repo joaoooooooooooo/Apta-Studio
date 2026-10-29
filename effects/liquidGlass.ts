@@ -80,7 +80,7 @@ export const liquidGlass: Effect = {
       visibleWhen: { key: 'area', equals: 'Lens' },
     },
     {
-      key: 'size', label: 'Size', type: 'slider', min: 4, max: 80, step: 1, default: 26, unit: '%',
+      key: 'size', label: 'Size', type: 'slider', min: 4, max: 200, step: 1, default: 26, unit: '%',
       visibleWhen: { key: 'area', equals: 'Lens' },
     },
     {

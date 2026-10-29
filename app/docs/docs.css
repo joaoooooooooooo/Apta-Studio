@@ -36,7 +36,7 @@
 }
 
 .docs-brand {
-  display: flex; align-items: baseline; gap: 7px;
+  display: flex; align-items: center; gap: 7px;
   font-size: var(--fs-label); font-weight: 600; color: var(--fg);
   text-decoration: none; white-space: nowrap;
 }

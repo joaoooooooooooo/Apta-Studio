@@ -40,7 +40,7 @@ export default function WelcomeDialog() {
       <div className="modal welcome" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-body">
           <span className="eyebrow">Welcome</span>
-          <h1 className="welcome-title">Motion Studio</h1>
+          <h1 className="welcome-title">Apta Studio</h1>
 
           <p>
             This is an open-source adaptation of several motion libraries —
@@ -48,7 +48,7 @@ export default function WelcomeDialog() {
           </p>
           <p>
             Use it freely, including at work and in production. The one thing the
-            licence holds back is <b>offering Motion Studio to other people as a
+            licence holds back is <b>offering Apta Studio to other people as a
             hosted service</b> — that stays with the maintainers.
           </p>
           <p>

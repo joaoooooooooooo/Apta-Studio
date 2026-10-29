@@ -496,8 +496,8 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
                     : 'MP4 needs WebCodecs, which this browser doesn’t provide, and this hosted build has no server to run ffmpeg on.'}
                   {' '}GIF exports here without either — switch the format above, or run it locally:
                 </p>
-                <pre><code>{`git clone https://github.com/appariciojunior/motion-studio-open.git
-cd motion-studio-open
+                <pre><code>{`git clone https://github.com/appariciojunior/motion-studio-open.git "Apta Studio"
+cd "Apta Studio"
 npm install && brew install ffmpeg
 npm run dev`}</code></pre>
                 <a className="btn full" href="https://github.com/appariciojunior/motion-studio-open" target="_blank" rel="noreferrer">

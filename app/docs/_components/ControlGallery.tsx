@@ -31,7 +31,7 @@ const DEMOS: Demo[] = [
       description: 'How far each card leans out of the plane.',
     },
     what: 'A number in a range.',
-    how: 'The whole track is the control — press anywhere on it and drag. Hold Shift while dragging for a grid ten times finer than the declared step. Click the value to type an exact one; double-click the track to snap back to the declared default. Focus it and the arrow keys nudge by a step, or by a tenth of one with Shift held.',
+    how: 'The label and exact value sit over the full slider track. Drag the track to adjust; hold Shift for a grid ten times finer than the declared step. Click the value to type an exact one; double-click the track to restore the default. Focus it and use arrow keys to nudge by a step, or by a tenth with Shift.',
   },
   {
     def: {
@@ -102,7 +102,7 @@ const DEMOS: Demo[] = [
   {
     def: {
       key: 'caption', label: 'Caption', type: 'text',
-      default: 'Motion Studio', section: 'Finish',
+      default: 'Apta Studio', section: 'Finish',
     },
     what: 'A string.',
     how: 'For motions that draw type. Plain and deliberately unstyled: the template decides how the string is rendered, the control only collects it.',

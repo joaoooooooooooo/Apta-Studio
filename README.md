@@ -1,4 +1,55 @@
-# Motion Studio
+# Apta Studio
+
+## Sobre este repositório
+
+Este projeto é uma versão adaptada do [Motion Studio](https://github.com/appariciojunior/motion-studio-open), mantida como **Apta Studio**. Ele reúne um editor de animações em Next.js e uma biblioteca de mídia conectada ao Sanity. A interface da biblioteca está em modo de consulta: permite visualizar, copiar links e baixar arquivos, sem exibir os controles de envio ou edição.
+
+### Executar localmente
+
+Requisitos: Node.js 24 ou superior e npm.
+
+```bash
+npm ci
+npm run dev
+```
+
+Abra `http://localhost:3000`. A biblioteca de mídia fica em `/media`.
+
+Para configurar outro projeto Sanity, copie `.env.example` para `.env.local` e ajuste `SANITY_PROJECT_ID` e `SANITY_DATASET`. A leitura pública não exige token. `SANITY_API_TOKEN` é um segredo de servidor reservado para operações de escrita e nunca deve ser enviado ao Git.
+
+### Estrutura principal
+
+| Caminho | Função |
+|---|---|
+| `app/` | Páginas, layout e rotas de API do Next.js. `app/media` é a biblioteca; `app/api/media` consulta o Sanity e gera o ZIP para download. |
+| `components/` | Componentes da interface, incluindo o editor e `MediaLibraryPage.tsx`. |
+| `lib/` | Lógica compartilhada de exportação, renderização e acesso ao Sanity. |
+| `templates/` | Modelos de animação e posts. |
+| `effects/` e `three3d/` | Efeitos visuais e renderização 3D. |
+| `store/` | Estado do editor com Zustand. |
+| `styles/` e `app/globals.css` | Estilos e tokens visuais. |
+| `public/` | Arquivos estáticos usados pelo aplicativo. |
+| `scripts/` | Ferramentas de geração e verificação. |
+| `.github/workflows/` | Verificações e publicação manual da versão estática. |
+
+O aplicativo completo precisa de um servidor Next.js para as rotas `/api/media`. A versão estática do GitHub Pages não inclui essas rotas; por isso, a publicação em Pages é manual e não ocorre automaticamente a cada push.
+
+### Verificação
+
+```bash
+npx tsc --noEmit
+npm test
+```
+
+### Arquivos que não vão para o repositório
+
+O `.gitignore` exclui `node_modules`, `.next`, resultados gerados, arquivos locais `.env*` (exceto o modelo sem segredo `.env.example`) e metadados da máquina. Confira o conteúdo antes de adicionar novos arquivos binários ou credenciais.
+
+---
+
+## Documentação original do Motion Studio
+
+As notas abaixo descrevem a base original do projeto. Links para a demonstração e instruções de publicação da base original não representam esta versão do Apta Studio.
 
 A **studio for quick videos, GIFs and device mockups** that runs on your own
 machine. Drop in images or video, pick one of **224 motion presets**, tweak live
@@ -359,7 +410,7 @@ templates, in `effects/`.
 
 Source-available under the **Elastic License 2.0** — use, copy, modify and
 distribute freely, including commercially and in production. The one right
-withheld is offering Motion Studio to third parties as a hosted or managed
+withheld is offering Apta Studio to third parties as a hosted or managed
 service. See [LICENSE](LICENSE); third-party components and their licences are
 listed in [NOTICE](NOTICE).
 

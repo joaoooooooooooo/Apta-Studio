@@ -6,6 +6,7 @@ import { loadSocialFonts } from './socialAssets';
 import { useSceneStore } from '@/store/useSceneStore';
 import { drawKpiText } from '@/templates/social/kpi/draw';
 import { socialPostColors } from '@/templates/social/theme';
+import { drawTemplateText } from './templateText';
 
 export class KpiRenderer implements IRenderer {
   private canvas!: HTMLCanvasElement;
@@ -68,6 +69,7 @@ export class KpiRenderer implements IRenderer {
     ctx.save(); ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
     ctx.drawImage(image.canvas, x - image.overscan, y);
     ctx.translate(x, y); ctx.scale(scale, scale); drawKpiText(ctx, v); ctx.restore();
+    drawTemplateText(ctx, s.width, s.height, v, this.canvas.width / s.width);
     this.canvas.style.cursor = enabled(v, 'material.showCursor') ? 'default' : 'none';
     this.syncing = true;
     try {
@@ -122,6 +124,8 @@ export class KpiRenderer implements IRenderer {
     const scale = Math.max(1, Math.min(4, numberValue(s.values, 'exportOptions.scale', 2)));
     try {
       const image = this.cloud.render(s.values, s.frame / s.fps * numberValue(s.values, 'speed', 1), 1080 * scale, 1312 * scale, undefined, true);
+      const ctx = image.canvas.getContext('2d');
+      if (ctx) drawTemplateText(ctx, 1080, 1312, s.values, scale);
       return image.canvas.toDataURL('image/png');
     } finally { this.renderFrame(s.frame); }
   }

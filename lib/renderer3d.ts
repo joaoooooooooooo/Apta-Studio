@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { drawTemplateText, hasTemplateText } from './templateText';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { getTemplate, layerCountFor } from '@/templates';
 import { useSceneStore } from '@/store/useSceneStore';
@@ -90,6 +91,10 @@ export class SceneRenderer3D implements IRenderer {
   private hud = new THREE.Scene();
   private hudCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
   private logoMesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
+  private templateTextMesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
+  private templateTextCanvas: HTMLCanvasElement | null = null;
+  private templateTextTexture: THREE.CanvasTexture | null = null;
+  private templateTextKey = '';
   private logoUrl = '';
   private safeLine: THREE.LineLoop | null = null;
   private composeA!: THREE.WebGLRenderTarget;
@@ -822,6 +827,39 @@ export class SceneRenderer3D implements IRenderer {
     this.hudCam.bottom = -this.height / 2;
     this.hudCam.updateProjectionMatrix();
 
+    const textVisible = hasTemplateText(s.values);
+    if (textVisible) {
+      if (!this.templateTextMesh) {
+        this.templateTextMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1),
+          new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false, depthWrite: false, depthTest: false }),
+        );
+        this.hud.add(this.templateTextMesh);
+      }
+      const key = JSON.stringify([this.width, this.height, this.resolution, s.values.overlayText, s.values.overlayTextSize, s.values.overlayTextColor, s.values.overlayTextAlign, s.values.overlayTextX, s.values.overlayTextY]);
+      if (key !== this.templateTextKey) {
+        const w = Math.max(1, Math.round(this.width * this.resolution));
+        const h = Math.max(1, Math.round(this.height * this.resolution));
+        if (!this.templateTextCanvas || this.templateTextCanvas.width !== w || this.templateTextCanvas.height !== h) {
+          this.templateTextCanvas = document.createElement('canvas');
+          this.templateTextCanvas.width = w; this.templateTextCanvas.height = h;
+          this.templateTextTexture?.dispose();
+          this.templateTextTexture = new THREE.CanvasTexture(this.templateTextCanvas);
+          this.templateTextTexture.colorSpace = THREE.SRGBColorSpace;
+          this.templateTextMesh.material.map = this.templateTextTexture;
+          this.templateTextMesh.material.needsUpdate = true;
+        }
+        const ctx = this.templateTextCanvas.getContext('2d')!;
+        ctx.clearRect(0, 0, w, h);
+        drawTemplateText(ctx, this.width, this.height, s.values, this.resolution);
+        this.templateTextTexture!.needsUpdate = true;
+        this.templateTextKey = key;
+      }
+      this.templateTextMesh.scale.set(this.width, this.height, 1);
+      this.templateTextMesh.position.set(0, 0, 1);
+      this.templateTextMesh.visible = true;
+    } else if (this.templateTextMesh) this.templateTextMesh.visible = false;
+
     // safe-area guide (5% inset, cyan) — mirrors the Pixi overlay
     if (s.safeArea) {
       if (!this.safeLine) {
@@ -868,8 +906,10 @@ export class SceneRenderer3D implements IRenderer {
       const w = aspect >= 1 ? size : size * aspect;
       const h = aspect >= 1 ? size / aspect : size;
       const pad = 24;
-      const px = s.logo.position.includes('r') ? this.width / 2 - pad - w / 2 : -this.width / 2 + pad + w / 2;
-      const py = s.logo.position.startsWith('t') ? this.height / 2 - pad - h / 2 : -this.height / 2 + pad + h / 2;
+      const x = Math.max(0, Math.min(100, s.logo.x ?? (s.logo.position.includes('r') ? 100 : 0))) / 100;
+      const y = Math.max(0, Math.min(100, s.logo.y ?? (s.logo.position.startsWith('b') ? 100 : 0))) / 100;
+      const px = -this.width / 2 + pad + w / 2 + (this.width - 2 * pad - w) * x;
+      const py = this.height / 2 - pad - h / 2 - (this.height - 2 * pad - h) * y;
       this.logoMesh.position.set(px, py, 0);
       this.logoMesh.scale.set(w, h, 1);
       this.logoMesh.visible = !!this.logoMesh.material.map;
@@ -1456,6 +1496,8 @@ export class SceneRenderer3D implements IRenderer {
     this.cornerMaps.clear();
     this.gradientTex?.dispose();
     this.backgroundTex?.dispose();
+    if (this.templateTextMesh) { this.templateTextMesh.geometry.dispose(); this.templateTextMesh.material.dispose(); }
+    this.templateTextTexture?.dispose();
     this.backgroundGeneration++;
     this.composeA?.dispose();
     this.bgTarget?.dispose();

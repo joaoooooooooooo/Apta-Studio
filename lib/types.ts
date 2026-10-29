@@ -159,6 +159,7 @@ export interface Template {
     id: string; name: string; group: string; thumbnail?: string;
     kind?: 'motion' | 'social' | 'social-motion'; // Existing templates default to motion.
     socialSize?: { width: number; height: number }; // authored post size in export pixels
+    defaultCanvas?: { width: number; height: number }; // authored canvas for a motion template
     socialRenderer?: 'canvas' | 'particles'; // self-contained animated artwork, without media layers
     defaultDuration?: number;
     defaultFps?: number;
@@ -171,6 +172,9 @@ export interface Template {
     cardAspect?: number | 'canvas';           // cover-crop shape: w/h ratio (default 4/5) or the canvas aspect (full-bleed)
   };
   controls: ControlDef[];                     // its FULL own set
+  textOverlay?: (
+    frame: number, count: number, values: Record<string, any>, ctx: TransformCtx,
+  ) => { text: string; x: number; y: number; fontSize: number; color: string; maxWidth: number };
   // How many layers this template wants, when that is a consequence of the
   // canvas rather than a choice. A lattice family is the case: its wall has to
   // hold enough cells to cover the frame, so shrinking the card must ADD cells —

@@ -7,6 +7,7 @@ import { ControlRow, controlVisible } from './Controls';
 import EasingPanel from './EasingPanel';
 import SocialPhotoControl from './SocialPhotoControl';
 import CopySocialProperties from './CopySocialProperties';
+import GalleryCaptionRows from './GalleryCaptionRows';
 import KpiControls from './KpiControls';
 import ChannelThreadControls from './ChannelThreadControls';
 import TrackInspector from './TrackInspector';
@@ -157,7 +158,7 @@ export default function ScenePanel() {
       <div className="section-head"><span className="eyebrow">Post</span><span className="badge">{template.meta.name}</span></div>
       <div className="section-body">{activeTemplateId === 'social-channel-thread' ? <ChannelThreadControls /> : <><div className="ctl-section">
         <div className="ctl-section-title">Post controls</div>
-        {template.controls.filter((def) => controlVisible(def, values) && (activeTemplateId !== 'social-kpi' || (!def.key.includes('.') && def.key !== 'source'))).map((def) => def.type === 'upload'
+        {template.controls.filter((def) => controlVisible(def, values) && !(template.meta.kind === 'social' && ['postTheme', 'fontStyle'].includes(def.key)) && (activeTemplateId !== 'social-kpi' || (!def.key.includes('.') && def.key !== 'source'))).map((def) => def.type === 'upload'
           ? <SocialPhotoControl key={def.key} def={def} />
           : <ControlRow key={def.key} def={def} value={values[def.key] ?? def.default} onChange={(value) => setValue(def.key, value)} />)}
       </div>{activeTemplateId === 'social-kpi' && <KpiControls />}</>}</div>
@@ -168,7 +169,7 @@ export default function ScenePanel() {
         {!template.meta.socialRenderer && <EasingPanel />}
       </>}
       {template.meta.group === 'Motion Chips' && <TrackInspector />}
-      <CopySocialProperties key={activeTemplateId} />
+      {(template.meta.kind === 'social' || template.meta.socialRenderer) && <CopySocialProperties key={activeTemplateId} />}
     </>
   );
   const visibleControls = template.controls.filter((def) => controlVisible(def, values));
@@ -213,9 +214,9 @@ export default function ScenePanel() {
           return (
             <div className="ctl-section" key={section}>
               <div className="ctl-section-title">{section}</div>
-              {controls.map((def) => (
-                <ControlRow key={def.key} def={def} value={values[def.key]} onChange={(val) => setValue(def.key, val)} />
-              ))}
+              {controls.map((def) => def.key === 'captions' && activeTemplateId === 'wheel-gallery-text'
+                ? <GalleryCaptionRows key={def.key} count={values.count} value={values.captions} onChange={(text) => setValue('captions', text)} />
+                : <ControlRow key={def.key} def={def} value={values[def.key]} onChange={(val) => setValue(def.key, val)} />)}
             </div>
           );
         })}
@@ -235,7 +236,6 @@ export default function ScenePanel() {
           </div>
         )}
       </div>
-
       <div className="hairline" />
 
       {/* The shot: where the camera stands. Scene-level, so it sits OUTSIDE the

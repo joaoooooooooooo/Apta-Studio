@@ -10,7 +10,7 @@
  * this file is the only place to edit.
  */
 
-export const REPO_URL = 'https://github.com/appariciojunior/motion-studio-open';
+export const REPO_URL = 'https://github.com/joaoooooooooooo/Apta-Studio';
 
 export type SocialNetwork = 'x' | 'instagram' | 'linkedin' | 'youtube' | 'discord' | 'site';
 

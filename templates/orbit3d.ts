@@ -827,10 +827,14 @@ export const orbit3dVariants: Template[] = [
     tiltX: -10, ringYaw: -10, ringRoll: 50, zoom: 75, perspective: 500, speed: 0.45,
   }, LINEAR, SQUARE),
   variant(ring3d, 'orbit-3d-12', 'Ring Carousel 03', {
-    count: 6, gap: 15, surface: 'flat', facing: 'camera', fade: 15, fadeMode: 'solid',
-    scaleContrast: 50, tiltX: 0, ringYaw: 0, ringRoll: 56, zoom: 50, perspective: 500,
-    speed: 0.55, hold: 13.5,
-  }, NATURAL, SQUARE),
+    count: 10, gap: -9, diameter: 33, cardRotation: 0, surface: 'flat', facing: 'camera',
+    cardTilt: 0, cardBend: 0, flip: 'no', zoom: 58.9, perspective: 914,
+    offset: { x: 0, y: 0 }, tiltX: 0, ringYaw: 0, ringRoll: 56,
+    scaleContrast: 500, fade: 0, fadeMode: 'solid', frontface: 'show',
+    backface: 'hide', isolated: 'off', cornerRadius: 14, shadow: 'on',
+    direction: 'reverse', speed: 0.55, hold: 13.5, style: 'stream',
+    spread: 100, pulse: 15, curve: 0,
+  }, NATURAL, { ...SQUARE, defaultCanvas: { width: 864, height: 1080 }, defaultDuration: 11.25, defaultFps: 30 }),
   // Overlapping by half a card, stood upright, and pushed hard on depth — the
   // reference's densest Orbit preset, and the one our old model could not have
   // expressed at all.
