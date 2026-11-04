@@ -133,6 +133,9 @@ export interface TransformCtx {
   // declared aspect instead leaves the horizontal and vertical gutters unequal.
   // Optional so older ctx builders keep compiling; fall back to the declared one.
   cardAspect?: number;
+  // Native aspect of each rendered media slot, available after its image loads.
+  cardAspects?: number[];
+  autoCardShape?: boolean;
 }
 
 export interface CameraPose {

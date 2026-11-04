@@ -1,4 +1,6 @@
 import { announceTitleArtwork } from '@/templates/motion-chips/announce-title/draw';
+import { shutterTypeArtwork } from '@/templates/motion-chips/shutter-type/draw';
+import { floodTypeArtwork } from '@/templates/motion-chips/flood-type/draw';
 import type { IRenderer } from './rendererTypes';
 import { useSceneStore } from '@/store/useSceneStore';
 import { loadSocialFonts, loadSocialImages } from './socialAssets';
@@ -11,7 +13,7 @@ import { channelThreadArtwork } from '@/templates/social/channel-thread/draw';
 import { wordGatherArtwork } from '@/templates/social/word-gather/draw';
 import type { SocialArtwork, SocialImages, SocialValues } from '@/templates/social/types';
 
-const artworks: Record<string, SocialArtwork> = { 'social-test': testArtwork, 'social-testimonial': testimonialArtwork, 'social-with-without': withWithoutArtwork, 'social-channel-thread': channelThreadArtwork, 'social-word-gather': wordGatherArtwork, 'chip-announce-title': announceTitleArtwork };
+const artworks: Record<string, SocialArtwork> = { 'social-test': testArtwork, 'social-testimonial': testimonialArtwork, 'social-with-without': withWithoutArtwork, 'social-channel-thread': channelThreadArtwork, 'social-word-gather': wordGatherArtwork, 'chip-announce-title': announceTitleArtwork, 'chip-shutter-type': shutterTypeArtwork, 'chip-flood-type': floodTypeArtwork };
 export function socialArtwork(id: string): SocialArtwork {
   const artwork = artworks[id];
   if (!artwork) throw new Error('Unknown social template: ' + id);
@@ -22,7 +24,7 @@ export async function prepareSocialArtwork(id: string, values: SocialValues) {
   const [, images] = await Promise.all([artwork.prepare?.() ?? (artwork.fonts ? loadSocialFonts() : Promise.resolve()), loadSocialImages(artwork.images(values), artwork.optionalImages)]);
   return images;
 }
-export function drawSocialArtwork(canvas: HTMLCanvasElement, id: string, values: SocialValues, images: SocialImages, seconds = 0) {
+export function drawSocialArtwork(canvas: HTMLCanvasElement, id: string, values: SocialValues, images: SocialImages, seconds = 0, duration?: number) {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas is unavailable');
   const artwork = socialArtwork(id);
@@ -34,7 +36,7 @@ export function drawSocialArtwork(canvas: HTMLCanvasElement, id: string, values:
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (!artwork.responsive) ctx.translate((canvas.width - artwork.width * scale) / 2, (canvas.height - artwork.height * scale) / 2);
   ctx.scale(scale, scale);
-  artwork.draw(ctx, values, images, seconds, artwork.responsive ? canvas.width / scale : undefined, artwork.responsive ? canvas.height / scale : undefined);
+  artwork.draw(ctx, values, images, seconds, artwork.responsive ? canvas.width / scale : undefined, artwork.responsive ? canvas.height / scale : undefined, duration);
   ctx.restore();
 }
 
@@ -82,7 +84,7 @@ export class SocialRenderer implements IRenderer {
       });
       return;
     }
-    drawSocialArtwork(this.canvas, s.activeTemplateId, s.values, this.resources, frame / s.fps);
+    drawSocialArtwork(this.canvas, s.activeTemplateId, s.values, this.resources, frame / s.fps, s.duration);
     const ctx = this.canvas.getContext('2d');
     if (ctx) drawTemplateText(ctx, s.width, s.height, s.values, this.canvas.width / s.width);
   }

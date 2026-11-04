@@ -62,7 +62,7 @@ export async function PUT(req: NextRequest) {
     if (buf.length > 512 * 1024 * 1024) return NextResponse.json({ error: 'too large' }, { status: 413 });
     const contentHash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 24);
     await fs.mkdir(EXPORTS_DIR, { recursive: true });
-    const out = `proxy_${contentHash}.mp4`;
+    const out = `proxy_v2_${contentHash}.mp4`;
     const outPath = path.join(EXPORTS_DIR, out);
     try {
       const existing = await fs.stat(outPath);
@@ -77,7 +77,7 @@ export async function PUT(req: NextRequest) {
     // few-seconds one-time cost, cached client-side per asset
     await run('ffmpeg', ['-y', '-i', input, '-an', '-c:v', 'libx264', '-preset', 'veryfast',
       '-tune', 'fastdecode', '-g', '1', '-bf', '0', '-sc_threshold', '0',
-      '-pix_fmt', 'yuv420p', '-crf', '18', '-movflags', '+faststart', outPath]);
+      '-pix_fmt', 'yuv420p', '-crf', '10', '-movflags', '+faststart', outPath]);
     await fs.rm(dir, { recursive: true, force: true });
     return NextResponse.json({ url: `/exports/${out}` });
   } catch (e: any) {
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       }
       const dir = sessionDir(sessionId);
       const base64 = String(dataUrl).replace(/^data:image\/\w+;base64,/, '');
-      const file = path.join(dir, `frame_${String(idx).padStart(5, '0')}.jpg`);
+      const file = path.join(dir, `frame_${String(idx).padStart(5, '0')}.png`);
       await fs.writeFile(file, Buffer.from(base64, 'base64'));
       return NextResponse.json({ ok: true });
     }
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'bad params' }, { status: 400 });
       }
       const dir = sessionDir(sessionId);
-      const pattern = path.join(dir, 'frame_%05d.jpg');
+      const pattern = path.join(dir, 'frame_%05d.png');
       await fs.mkdir(EXPORTS_DIR, { recursive: true });
 
       // Exact output size when the client provides one (already even-rounded);
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
         args.push('-vf', sizeFilter);
         // veryfast: 2–4× faster encode than the default 'medium' for a marginal
         // size increase — this path is now the fallback behind WebCodecs anyway.
-        args.push('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-crf', '18');
+        args.push('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-crf', '14');
         if (audioFile) args.push('-c:a', 'aac', '-shortest');
         args.push(outPath);
         await run('ffmpeg', args);

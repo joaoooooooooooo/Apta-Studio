@@ -45,8 +45,9 @@ async function pickConfig(VideoEncoder: WCEncoderCtor, width: number, height: nu
     width,
     height,
     framerate: fps,
-    // ~0.15 bits per pixel per frame ≈ visually lossless for motion graphics
-    bitrate: Math.min(40_000_000, Math.max(4_000_000, Math.round(width * height * fps * 0.15))),
+    // A moving wall of detailed videos needs substantially more bits than
+    // flat motion graphics; avoid visible grain/blocking in the card textures.
+    bitrate: Math.min(80_000_000, Math.max(8_000_000, Math.round(width * height * fps * 0.3))),
   };
   for (const hw of ['prefer-hardware', 'no-preference']) {
     const config = { ...base, hardwareAcceleration: hw, avc: { format: 'avc' } };

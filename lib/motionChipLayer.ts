@@ -48,7 +48,7 @@ export class MotionChipLayer {
     }
     const scale = Math.min(w / artwork.width, h / artwork.height);
     ctx.save(); if (!artwork.responsive) ctx.translate((w - artwork.width * scale) / 2, (h - artwork.height * scale) / 2);
-    ctx.scale(scale, scale); artwork.draw(ctx, values, this.images, artwork.referenceDuration && duration ? seconds * artwork.referenceDuration / duration : seconds, artwork.responsive ? w / scale : undefined, artwork.responsive ? h / scale : undefined); ctx.restore();
+    ctx.scale(scale, scale); artwork.draw(ctx, values, this.images, !artwork.usesSceneDuration && artwork.referenceDuration && duration ? seconds * artwork.referenceDuration / duration : seconds, artwork.responsive ? w / scale : undefined, artwork.responsive ? h / scale : undefined, duration); ctx.restore();
     this.texture.source.update(); this.sprite.width = width; this.sprite.height = height;
   }
   destroy() { this.disposed = true; this.texture?.destroy(true); this.sprite.destroy(); }

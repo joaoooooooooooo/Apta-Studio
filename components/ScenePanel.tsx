@@ -10,6 +10,7 @@ import CopySocialProperties from './CopySocialProperties';
 import GalleryCaptionRows from './GalleryCaptionRows';
 import KpiControls from './KpiControls';
 import ChannelThreadControls from './ChannelThreadControls';
+import ShutterTypeControls from './ShutterTypeControls';
 import TrackInspector from './TrackInspector';
 import { trackWindow } from '@/lib/tracks';
 import {
@@ -156,7 +157,7 @@ export default function ScenePanel() {
   if (template.meta.kind === 'social' || template.meta.kind === 'social-motion') return (
     <>
       <div className="section-head"><span className="eyebrow">Post</span><span className="badge">{template.meta.name}</span></div>
-      <div className="section-body">{activeTemplateId === 'social-channel-thread' ? <ChannelThreadControls /> : <><div className="ctl-section">
+      <div className="section-body">{activeTemplateId === 'social-channel-thread' ? <ChannelThreadControls /> : activeTemplateId === 'chip-shutter-type' ? <ShutterTypeControls controls={template.controls} values={values} setValue={setValue} /> : <><div className="ctl-section">
         <div className="ctl-section-title">Post controls</div>
         {template.controls.filter((def) => controlVisible(def, values) && !(template.meta.kind === 'social' && ['postTheme', 'fontStyle'].includes(def.key)) && (activeTemplateId !== 'social-kpi' || (!def.key.includes('.') && def.key !== 'source'))).map((def) => def.type === 'upload'
           ? <SocialPhotoControl key={def.key} def={def} />

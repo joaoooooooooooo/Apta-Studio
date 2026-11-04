@@ -40,8 +40,9 @@ export function solveLattice(v: Record<string, any>, ctx: CanvasCtx, declaredAsp
   const cardW = w * scale, cardH = h * scale;
   const pitchX = (w + gap) * scale, pitchY = (h + gap) * scale;
   // Reference composition is independent of output dimensions and aspect.
-  let motifCols = Math.max(3, oddCover(810, w + gap));
-  let motifRows = Math.max(3, oddCover(1080, h + gap));
+  const motifMin = Math.max(3, Math.round(Number(v.motifMin) || 3));
+  let motifCols = Math.max(motifMin, oddCover(810, w + gap));
+  let motifRows = Math.max(motifMin, oddCover(1080, h + gap));
   const roll = (Number(v.tilt ?? 0) * Math.PI) / 180;
   const c = Math.abs(Math.cos(roll)), s = Math.abs(Math.sin(roll));
   const ox = Math.abs(Number(v.offset?.x ?? 0)) * scale;

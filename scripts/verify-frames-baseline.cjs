@@ -29,6 +29,8 @@ const QUADROS = [0, 37, 96, 155, 239];
 
 let cartoes = 0, casos = 0;
 for (const t of paredes) {
+  // Frames 05 intentionally uses a larger, shuffled motif to fit more media.
+  if (t.meta.id === 'wall-05') continue;
   for (const cena of CENAS) {
     const vals = { ...defaultsFor(t.meta.id) };
     const n = layerCountFor(t.meta.id, vals, cena);
@@ -50,4 +52,33 @@ for (const t of paredes) {
   }
 }
 
-console.log(`Frames: ${cartoes} cartoes conferidos contra a linha de base em ${casos} casos; a familia esta exatamente onde estava.`);
+const varied = paredes.find((t) => t.meta.id === 'wall-05');
+const scene = CENAS[0];
+const values = defaultsFor('wall-05');
+const count = layerCountFor('wall-05', values, scene);
+const ctx = { fps: 30, ...scene, duration: 8, totalFrames: 240, ease: (x) => x, easedPhase: (p) => p };
+assert.equal(varied.mediaCount(values, scene), 25, 'Frames 05 should have at least 25 media positions at its default size');
+assert.equal(new Set(Array.from({ length: count }, (_, i) => varied.mediaIndex(i, count, values, scene))).size, 25);
+for (let i = 0; i < count; i++) {
+  assert.deepEqual(varied.transform(0, i, count, values, ctx), varied.transform(240, i, count, values, ctx),
+    `Frames 05 card ${i} must close its animation loop`);
+}
+const { solveLattice } = require('../templates/lattice.ts');
+const lattice = solveLattice({ ...values, motifMin: 5 }, scene, 3 / 4, count);
+const aspects = Array.from({ length: count }, (_, i) => [0.6, 1.4, 0.75, 1.8, 1][i % 5]);
+const autoCtx = { ...ctx, autoCardShape: true, cardAspects: aspects };
+for (let i = 0; i < count; i++) {
+  assert.deepEqual(varied.transform(0, i, count, values, autoCtx), varied.transform(240, i, count, values, autoCtx),
+    `Frames 05 auto card ${i} must close its animation loop`);
+}
+const roll = values.tilt * Math.PI / 180;
+const unroll = (pose) => pose.x * Math.cos(roll) + pose.y * Math.sin(roll);
+for (let col = 0; col < lattice.motifCols - 1; col++) {
+  const left = varied.transform(0, col, count, values, autoCtx);
+  const right = varied.transform(0, col + 1, count, values, autoCtx);
+  const actual = unroll(right) - unroll(left);
+  const expected = lattice.cardH * (aspects[col] + aspects[col + 1]) / 2 + values.gap * lattice.scale;
+  assert.ok(Math.abs(actual - expected) < 0.001, `Frames 05 auto gap ${col}: ${actual} vs ${expected}`);
+}
+
+console.log(`Frames: ${cartoes} baseline cards checked in ${casos} cases; Frames 05 variety and loop checked separately.`);

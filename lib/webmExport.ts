@@ -37,10 +37,8 @@ const getWC = () => {
 // advisory in the codec string, so the encoder is asked at a couple of them
 // rather than assuming one is accepted.
 async function pickConfig(VideoEncoder: WCEncoderCtor, width: number, height: number, fps: number) {
-  // Same bits-per-pixel budget as the H.264 path, deliberately: giving the two
-  // formats different targets would make any size comparison between them a
-  // measure of this constant rather than of the codecs.
-  const bitrate = Math.min(40_000_000, Math.max(4_000_000, Math.round(width * height * fps * 0.15)));
+  // Match the quality budget used for detailed, moving video cards in MP4.
+  const bitrate = Math.min(80_000_000, Math.max(8_000_000, Math.round(width * height * fps * 0.3)));
   for (const codec of ['vp09.00.41.08', 'vp09.00.10.08']) {
     for (const hw of ['prefer-hardware', 'no-preference']) {
       const config = { codec, width, height, framerate: fps, bitrate, hardwareAcceleration: hw };

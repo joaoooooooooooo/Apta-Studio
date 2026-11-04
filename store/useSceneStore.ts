@@ -396,6 +396,14 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setValue: (key, val) =>
     set((s) => {
       const next = withTrack(s, s.activeTrackId, { values: { ...s.values, [key]: val } });
+      if (s.activeTemplateId === 'chip-shutter-type' && s.tracks.length === 1 && (key === 'openingDuration' || key === 'stackDuration')) {
+        const opening = key === 'openingDuration' ? Number(val) : Number(s.values.openingDuration ?? 0.8);
+        const stack = key === 'stackDuration' ? Number(val) : Number(s.values.stackDuration ?? 1.92);
+        if (Number.isFinite(opening) && Number.isFinite(stack) && opening > 0 && stack > 0) {
+          const duration = opening + stack;
+          return { ...next, duration, frame: Math.min(Math.round(duration * s.fps) - 1, Math.round(s.frame * duration / s.duration)) };
+        }
+      }
       if (key !== 'count' || templates[s.activeTemplateId]?.meta.group !== 'Runway' || s.tracks.length !== 1) return next;
       const before = Number(s.values.count), after = Number(val);
       if (!Number.isFinite(before) || !Number.isFinite(after) || before <= 0 || after <= 0) return next;
@@ -781,6 +789,11 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     const standaloneMotion = s.tracks.length === 1;
     const tracks = s.tracks.map(track => ({
       ...track,
+      values: track.templateId === 'chip-shutter-type' ? {
+        ...track.values,
+        openingDuration: Math.min(Number(track.values.openingDuration ?? 0.8), Math.max(0.001, d / 2), Math.max(0.001, d - 0.001)),
+        stackDuration: d - Math.min(Number(track.values.openingDuration ?? 0.8), Math.max(0.001, d / 2), Math.max(0.001, d - 0.001)),
+      } : track.values,
       inFrame: standaloneMotion ? 0 : Math.round(track.inFrame * ratio),
       outFrame: standaloneMotion || track.outFrame === TRACK_END ? TRACK_END : Math.round(track.outFrame * ratio),
       fade: Math.round(track.fade * ratio),
@@ -994,6 +1007,14 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         && Number(runwayTrack.values.count) > 6
         && Math.abs(savedDuration - authoredRunwayDuration) < 0.001
         ? savedDuration * Number(runwayTrack.values.count) / 6 : savedDuration;
+      // Earlier Shutter Type scenes used a slower default opening and briefly
+      // stretched it with the timeline. Repair only that exact default split.
+      const repairedTracks = safeTracks.length === 1 && safeTracks[0].templateId === 'chip-shutter-type'
+        && savedDuration > 2.73
+        && Math.abs(Number(safeTracks[0].values.openingDuration) + Number(safeTracks[0].values.stackDuration) - savedDuration) < 0.01
+        && Math.abs(Number(safeTracks[0].values.openingDuration) / savedDuration - 1.16 / 2.72) < 0.0001
+        ? [{ ...safeTracks[0], values: { ...safeTracks[0].values, openingDuration: 0.8, stackDuration: savedDuration - 0.8 } }]
+        : safeTracks;
 
       return {
         ...s,
@@ -1006,7 +1027,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         // Rebuilt, never inherited: a project saved before the shot existed must
         // open neutral, not wearing whatever framing the last project had.
         sceneCamera: sanitizeSceneCamera((partial as { sceneCamera?: unknown }).sceneCamera),
-        ...projectActive(safeTracks, activeId),
+        ...projectActive(repairedTracks, activeId),
         frame: 0, // always start at the clip head
       };
     }),

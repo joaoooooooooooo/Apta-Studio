@@ -335,7 +335,8 @@ export class SceneRenderer {
     const indices = trackAssetIndices(track, s.assets);
     const pool = indices.map((i) => s.assets[i]).filter(Boolean);
 
-    const assetSig = (getTemplate(track.templateId).mediaIndex ? JSON.stringify([s.width, s.height, track.values]) : '') + (repeat ? 'R|' : '') + 'A' + aspect.toFixed(4) + '|' +
+    const naturalFrames = track.templateId === 'wall-05' && s.cardShape === 'auto';
+    const assetSig = (getTemplate(track.templateId).mediaIndex ? JSON.stringify([s.width, s.height, track.values]) : '') + (repeat ? 'R|' : '') + 'A' + aspect.toFixed(4) + (naturalFrames ? '|native' : '') + '|' +
       pool.map((a) => a.id + ':' + a.url + ':' + a.visible + ':' + cropKey(a.url, aspect, a.crop)).join('|');
 
     if (count === rt.countSig && assetSig === rt.assetSig) return;
@@ -374,7 +375,7 @@ export class SceneRenderer {
       let asset = pool[assetIndexForSlot(mediaIndex, pool.length, repeat)];
       if (!asset && pool.length > 0) asset = pool[mediaIndex % pool.length];
       const binding = asset
-        ? `${asset.id}|${cropKey(asset.url, aspect, asset.crop)}`
+        ? `${asset.id}|${naturalFrames ? `native:${asset.url}` : cropKey(asset.url, aspect, asset.crop)}`
         : `placeholder|${mediaIndex}`;
       const bindingChanged = slot.bindKey !== binding;
       slot.bindKey = binding;
@@ -400,7 +401,7 @@ export class SceneRenderer {
         const { url, crop, kind } = asset;
         this.loadTexture(url, kind).then((base) => {
           if (!base || slot.sprite.destroyed || slot.bindKey !== binding) return;
-          const tex = this.croppedView(url, base, aspect, crop);
+          const tex = naturalFrames ? base : this.croppedView(url, base, aspect, crop);
           slot.sprite.texture = tex;
           slot.label.visible = false;
           slot.texW = tex.width; slot.texH = tex.height; slot.maskKey = '';
@@ -882,6 +883,8 @@ export class SceneRenderer {
         // Resolved the same way the sprites themselves are cropped, so a
         // lattice template spaces cards by the shape actually on screen.
         cardAspect: cardAspectFor(template.meta, s.width, s.height, s.cardShape),
+        autoCardShape: template.meta.id === 'wall-05' && s.cardShape === 'auto',
+        cardAspects: rt.slots.map(slot => slot.texW / Math.max(1, slot.texH)),
       };
 
       if (rt.textOverlay && template.textOverlay) {
@@ -910,7 +913,8 @@ export class SceneRenderer {
         const taper = t.taper && t.taper.ratio < 0.999 ? t.taper : null;
         const node = this.selectNode(slot, rt.container, taper);
         node.position.set(t.x, t.y);
-        node.scale.set(norm * t.scale * (t.scaleX ?? 1), norm * t.scale * (t.scaleY ?? 1));
+        const nativeHeight = ctx.autoCardShape ? Math.max(slot.texW, slot.texH) / Math.max(1, slot.texH) : 1;
+        node.scale.set(norm * t.scale * nativeHeight * (t.scaleX ?? 1), norm * t.scale * nativeHeight * (t.scaleY ?? 1));
         // Repeated motifs need offscreen copies, but those copies must not spend
         // draw calls or text rasterization until their bounds enter the frame.
         //
@@ -922,7 +926,8 @@ export class SceneRenderer {
         // inside the 810px canvas painted -- five columns in a sea of background,
         // with `renderable` false on every card beyond them.
         const long = SPRITE_BASE * t.scale;
-        const cardW = long * Math.min(1, ctx.cardAspect), cardH = long * Math.min(1, 1 / ctx.cardAspect);
+        const cardW = ctx.autoCardShape ? long * slot.texW / Math.max(1, slot.texH) : long * Math.min(1, ctx.cardAspect);
+        const cardH = ctx.autoCardShape ? long : long * Math.min(1, 1 / ctx.cardAspect);
         // Match the sprite's affine transform, including projected ticker cards.
         const sx = Math.abs(t.scaleX ?? 1), sy = Math.abs(t.scaleY ?? 1);
         const ax = Math.abs(Math.cos(t.rotation + (t.skewY ?? 0))) * sx;
@@ -978,6 +983,9 @@ export class SceneRenderer {
 
   async prepareFrame() {
     this.syncAssets();
+    // Capture must not start while card videos are still decoding their first
+    // frame: otherwise beginVideoExport sees an incomplete videoEls pool.
+    await Promise.all([...this.texturePromises.values()]);
     if (useSceneStore.getState().tracks.some(track => !!getTemplate(track.templateId).textOverlay)) await loadSocialFonts();
     await Promise.all(useSceneStore.getState().tracks.map(track => this.trackRTs.get(track.id)?.chip?.prepare(track.templateId, track.values)));
     if (getTemplate(useSceneStore.getState().activeTemplateId).meta.kind === 'social-motion') {
@@ -1020,7 +1028,7 @@ export class SceneRenderer {
     this.croppedCache.clear();
     this.invalidateTracks();
     this.syncAssets();
-    await Promise.resolve();
+    await Promise.all([...this.texturePromises.values()]);
   }
 
   endVideoExport() {
@@ -1095,19 +1103,12 @@ export class SceneRenderer {
   }
 
   // Deterministic capture: realize frame, render, read pixels as a data URL.
-  // PNG when background has transparency (alpha < 100) so the alpha channel is preserved.
-  // JPEG (q0.92) when opaque: ~5–10× smaller + far faster to encode.
+  // Lossless PNG avoids a JPEG generation before the final video encoder.
   captureFrame(frame: number): string {
     if (!this.ready || this.destroyed || !this.app?.renderer) return '';
     this.renderFrame(frame);
     const canvas = this.app.canvas as HTMLCanvasElement;
-    const s = useSceneStore.getState();
-    const rawAlpha = sceneBackgroundAlpha(s);
-    const alphaPct = (rawAlpha > 0 && rawAlpha <= 1) ? rawAlpha * 100 : rawAlpha;
-    if (alphaPct < 100) {
-      return canvas?.toDataURL?.('image/png') ?? '';
-    }
-    return canvas?.toDataURL?.('image/jpeg', 0.92) ?? '';
+    return canvas?.toDataURL?.('image/png') ?? '';
   }
 
   // Multiply the backing-store resolution for export capture. Logical

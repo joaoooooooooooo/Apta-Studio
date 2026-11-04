@@ -41,7 +41,7 @@ export function seekVideoToTime(
   t: number,
   mode: 'loop' | 'hold' = 'loop',
 ): Promise<void> {
-  return new Promise<void>((resolve) => {
+  return new Promise<void>((resolve, reject) => {
     if (!v.duration || !isFinite(v.duration) || v.duration <= 0) { resolve(); return; }
     v.pause();
     // loop: wrap into the video's duration · hold: clamp just before the end so
@@ -64,7 +64,7 @@ export function seekVideoToTime(
     let frameCallbackId: number | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let grace: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
+    const finish = (error?: Error) => {
       if (done) return;
       done = true;
       v.removeEventListener('seeked', onSeeked);
@@ -74,7 +74,8 @@ export function seekVideoToTime(
       }
       if (timer) clearTimeout(timer);
       if (grace) clearTimeout(grace);
-      resolve();
+      if (error) reject(error);
+      else resolve();
     };
     // Prefer to capture after the callback registered for this seek reports a
     // presented frame: registering it after `seeked` can miss that presentation
@@ -112,7 +113,7 @@ export function seekVideoToTime(
       else setTimeout(finish, 0);
     };
     v.addEventListener('seeked', onSeeked, { once: true });
-    timer = setTimeout(finish, 3000); // safety cap — never hang an export frame
+    timer = setTimeout(() => finish(new Error('Timed out decoding a video card for export')), 10000);
     try {
       const fastSeek = (v as HTMLVideoElement & { fastSeek?: (time: number) => void }).fastSeek;
       if (v.dataset.motionIntraProxy === '1' && fastSeek) fastSeek.call(v, target);
@@ -120,11 +121,9 @@ export function seekVideoToTime(
       if (frameApi.requestVideoFrameCallback) {
         frameCallbackId = frameApi.requestVideoFrameCallback.call(v, onVideoFrame);
       }
-    } catch { finish(); }
+    } catch { finish(new Error('Could not seek a video card for export')); }
   });
 }
-
-const sequentialExportTime = new WeakMap<HTMLVideoElement, number>();
 
 function rewindVideoForExport(v: HTMLVideoElement): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -163,19 +162,15 @@ function rewindVideoForExport(v: HTMLVideoElement): Promise<void> {
   });
 }
 
-// Export frames are requested in ascending order. Decode them in the same
-// direction instead of issuing a random-access seek for every output frame.
-// This turns an O(frames × GOP decode) path into a single forward decode pass.
+// Rewind before frame-indexed capture begins.
 export async function prepareVideoForSequentialExport(v: HTMLVideoElement): Promise<void> {
-  sequentialExportTime.delete(v);
   await rewindVideoForExport(v);
-  sequentialExportTime.set(v, 0);
 }
 
 export function advanceVideoForExport(
   v: HTMLVideoElement,
   t: number,
-  fps: number,
+  _fps: number,
   mode: 'loop' | 'hold' = 'loop',
 ): Promise<void> {
   if (!v.duration || !isFinite(v.duration) || v.duration <= 0) return Promise.resolve();
@@ -183,58 +178,10 @@ export function advanceVideoForExport(
     ? Math.min(t, Math.max(0, v.duration - 0.034))
     : t % v.duration;
 
-  // On an all-intra proxy a seek decodes exactly one frame, so the export can
-  // land on the requested time instead of approaching it. Measured at 30 fps:
-  // 16.6 ms/frame and 60/60 distinct frames, against 32.8 ms/frame for the
-  // forward-play path below. Sequential decoding is a workaround for expensive
-  // seeks — once seeks are cheap it only costs accuracy.
-  if (v.dataset.motionIntraProxy === '1') {
-    sequentialExportTime.set(v, target);
-    return seekVideoToTime(v, target, mode);
-  }
-
-  const previousTarget = sequentialExportTime.get(v) ?? 0;
-  const frameTolerance = 0.5 / Math.max(1, fps);
-
-  // The only random-access seek left is the intentional video loop boundary.
-  if (target + frameTolerance < previousTarget) {
-    sequentialExportTime.set(v, target);
-    return rewindVideoForExport(v);
-  }
-  sequentialExportTime.set(v, target);
-  v.loop = false;
-  if (v.currentTime + frameTolerance >= target) return Promise.resolve();
-
-  return new Promise<void>((resolve) => {
-    const frameApi = v as HTMLVideoElement & {
-      requestVideoFrameCallback?: (cb: (_now: number, metadata: { mediaTime: number }) => void) => number;
-      cancelVideoFrameCallback?: (id: number) => void;
-    };
-    let callbackId: number | undefined;
-    let finished = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const finish = (fallback = false) => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timer);
-      if (callbackId !== undefined) frameApi.cancelVideoFrameCallback?.(callbackId);
-      v.pause();
-      if (fallback) seekVideoToTime(v, target, mode).then(resolve);
-      else resolve();
-    };
-    timer = setTimeout(() => finish(true), 1500);
-    const onFrame = (_now: number, metadata: { mediaTime: number }) => {
-      callbackId = undefined;
-      if (metadata.mediaTime + frameTolerance >= target) finish();
-      else if (frameApi.requestVideoFrameCallback) {
-        callbackId = frameApi.requestVideoFrameCallback(onFrame);
-      } else finish(true);
-    };
-    if (frameApi.requestVideoFrameCallback) {
-      callbackId = frameApi.requestVideoFrameCallback(onFrame);
-      v.play().catch(() => finish(true));
-    } else finish(true);
-  });
+  // Playback-driven capture can skip presented frames when many card videos
+  // compete with the encoder. A normal source costs more to seek than an
+  // all-intra proxy, but export must wait for the requested decoded frame.
+  return seekVideoToTime(v, target, mode);
 }
 
 // ---- export proxies ----

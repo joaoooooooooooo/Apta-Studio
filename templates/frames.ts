@@ -145,9 +145,68 @@ export const framesVariants: Template[] = [
   preset(framesBase, 'wall-04', 'Frames 04', {
     cardSize: 610, hold: 0,
   }, { id: 'linear' }),
-  preset(framesBase, 'wall-05', 'Frames 05', {
-    tilt: -15, hold: 0,
-  }, { id: 'flow' }),
+  (() => {
+    const base = preset(framesBase, 'wall-05', 'Frames 05', {
+      tilt: -15, hold: 0,
+    }, { id: 'flow' });
+    const varied = (v: Record<string, any>) => ({ ...v, motifMin: 5 });
+    return {
+      ...base,
+      layerCount: (v, ctx) => latticeCount(varied(v), ctx, 3 / 4),
+      mediaCount: (v, ctx) => {
+        const l = solveLattice(varied(v), ctx);
+        return l.motifCols * l.motifRows;
+      },
+      mediaIndex: (index, count, v, ctx) => {
+        const l = solveLattice(varied(v), ctx, 3 / 4, count);
+        const cell = latticeMediaIndex(index, count, varied(v), ctx);
+        const slots = l.motifCols * l.motifRows;
+        const stride = slots % 7 !== 0 ? 7 : slots % 11 !== 0 ? 11 : 2;
+        return (cell * stride + 11) % slots;
+      },
+      transform: (frame, index, count, v, ctx) =>
+      {
+        const values = varied(v);
+        const pose = framesBase.transform(frame, index, count, values, ctx);
+        if (!ctx.autoCardShape || !ctx.cardAspects?.length) return pose;
+        const l = solveLattice(values, ctx, 3 / 4, count);
+        const col = index % l.cols;
+        const row = Math.floor(index / l.cols);
+        const motifRow = row % l.motifRows;
+        const widths = Array.from({ length: l.motifCols }, (_, c) => {
+          const aspect = ctx.cardAspects![motifRow * l.cols + c];
+          return l.cardH * (Number.isFinite(aspect) && aspect! > 0 ? aspect! : ctx.cardAspect ?? 3 / 4);
+        });
+        const span = widths.reduce((sum, width) => sum + width + v.gap * l.scale, 0);
+        const motifCol = col % l.motifCols;
+        let center = widths[motifCol] / 2;
+        for (let c = 0; c < motifCol; c++) center += widths[c] + v.gap * l.scale;
+        const period = Math.round(clamp(v.rowsSkipped, 0, 2)) + 1;
+        const shift = period > 1 ? (motifRow % period) / period : 0;
+        const stepsY = v.speed === 0 ? 0 : l.motifRows * Math.max(1, Math.round((v.speed * ctx.duration) / l.motifRows));
+        const time = ((frame % ctx.totalFrames) + ctx.totalFrames) % ctx.totalFrames / ctx.totalFrames;
+        const hold = clamp(v.hold / 100, 0, 0.95);
+        const advance = hold > 0 ? stepHold(time * stepsY, hold, ctx.ease) : ctx.easedPhase(time * stepsY);
+        const baseLaps = v.sweep > 0 ? Math.max(1, Math.round((v.sweep * stepsY * l.pitchY) / span)) : 0;
+        const alternate = motifRow % 2 === 1 ? -1 : 1;
+        const laps = baseLaps === 0 ? 0 : v.weave === 'same' ? baseLaps
+          : v.weave === 'opposed' ? baseLaps * alternate : (baseLaps + motifRow % 3) * alternate;
+        const direction = v.direction === 'reverse' ? -1 : 1;
+        const pan = stepsY === 0 ? 0 : advance / stepsY * laps * span * direction;
+        const raw = center + shift * span / l.motifCols - pan;
+        const wrapped = ((raw % span) + span) % span - span / 2;
+        const px = wrapped + (Math.floor(col / l.motifCols) - (l.cols / l.motifCols - 1) / 2) * span;
+        const roll = (Number(v.tilt ?? 0) * Math.PI) / 180;
+        const scale = l.scale;
+        const py = -(pose.x - v.offset.x * scale) * Math.sin(roll) + (pose.y - v.offset.y * scale) * Math.cos(roll);
+        return {
+          ...pose,
+          x: px * Math.cos(roll) - py * Math.sin(roll) + v.offset.x * scale,
+          y: px * Math.sin(roll) + py * Math.cos(roll) + v.offset.y * scale,
+        };
+      },
+    };
+  })(),
   // A dense wall of small prints with wide mounts between them. The lattice
   // grows to match on its own now — this used to need count and columns
   // hand-tuned alongside cardSize, and they went stale the moment the canvas

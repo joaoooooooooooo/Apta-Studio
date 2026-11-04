@@ -1,41 +1,39 @@
 import type { SocialArtwork, SocialValues } from '../types';
-import { loadWordGatherFonts } from '@/lib/wordGatherFonts';
-import { REF_W, REF_H, CENTRE_X, CENTRE_Y, LINE_CX, CAP, CAP_RATIO, TRACKING, SPACE_TRIM, FIRST_AT, SETTLE, LEAD_RISE, LEAD_X, LEAD_Y, SCALE, SCATTER, TRAVEL, track, solve, dropOrder, beatAt } from './model';
+import { loadSocialFonts } from '@/lib/socialAssets';
+import { REF_W, REF_H, CENTRE_X, CENTRE_Y, LINE_CX, CAP, CAP_RATIO, SPACE_TRIM, FIRST_AT, SETTLE, LEAD_RISE, LEAD_X, LEAD_Y, SCALE, SCATTER, TRAVEL, track, solve, dropOrder, beatAt } from './model';
 
 function colors(v: SocialValues) {
-  const dark = v.postTheme === 'Dark';
-  return { background: v.palette === 'Custom' ? String(v.backgroundColor) : dark ? '#111111' : '#faf9f6',
-    ink: v.palette === 'Custom' ? String(v.textColor) : dark ? '#faf9f6' : '#191919' };
+  return { background: String(v.backgroundColor ?? '#faf9f6'), ink: String(v.textColor ?? '#191919') };
 }
 function number(v: SocialValues, key: string, fallback: number) { const n = Number(v[key]); return Number.isFinite(n) ? n : fallback; }
 function layout(ctx: CanvasRenderingContext2D, v: SocialValues) {
   const words = String(v.text ?? 'Every scene is yours to own.').split(/\s+/).filter(Boolean);
   const size = CAP / CAP_RATIO;
-  const face = v.fontFamily === 'Inter Tight' ? '"Inter Tight"' : v.fontFamily === 'System' ? 'Arial, sans-serif' : '"Figtree"';
-  const font = `${number(v, 'fontWeight', 500)} ${size}px ${face}`;
-  ctx.font = font; ctx.letterSpacing = `${TRACKING * size}px`;
+  const font = `600 ${size}px "Inter Tight", sans-serif`;
+  const letterSpacing = number(v, 'letterSpacing', 1.5) / 100 * size;
+  ctx.font = font; ctx.letterSpacing = `${letterSpacing}px`;
   const widths = words.map(word => ctx.measureText(word).width);
   const space = ctx.measureText(' ').width + SPACE_TRIM * size;
   const slots = solve(widths, space, number(v, 'maxWidth', 330));
   const order = dropOrder(Math.max(0, words.length - 1));
   const ranks: number[] = []; order.forEach((word, rank) => { ranks[word] = rank; });
-  return { words, widths, slots, ranks, font, size };
+  return { words, widths, slots, ranks, font, size, letterSpacing };
 }
 const layouts = new WeakMap<SocialValues, ReturnType<typeof layout>>();
 export const wordGatherArtwork: SocialArtwork = {
-  width: 1280, height: 720, previewTime: 1.1, prepare: loadWordGatherFonts,
+  width: 1280, height: 720, previewTime: 1.1, prepare: loadSocialFonts,
   background: v => colors(v).background, images: () => ({}),
   draw(ctx, v, _images, seconds = 0) {
     ctx.save();
     let data = layouts.get(v);
     if (!data) { data = layout(ctx, v); layouts.set(v, data); }
-    const { words, widths, slots, ranks, font, size } = data;
+    const { words, widths, slots, ranks, font, size, letterSpacing } = data;
     const b = beatAt(seconds, Math.max(0, number(v, 'speed', 1)));
     const s = track(SCALE, b);
     const k = Math.max(1280 / REF_W, 720 / REF_H) * number(v, 'zoom', 100) / 100;
     ctx.beginPath(); ctx.rect(0, 0, 1280, 720); ctx.clip();
     ctx.translate(640, 360); ctx.scale(k * s, k * s); ctx.translate(-CENTRE_X, -CENTRE_Y);
-    ctx.font = font; ctx.letterSpacing = `${TRACKING * size}px`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = font; ctx.letterSpacing = `${letterSpacing}px`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     const ink = colors(v).ink;
     for (let i = 0; i < words.length; i++) {
       let { x, baseline } = slots[i];

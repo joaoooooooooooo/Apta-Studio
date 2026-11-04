@@ -1,0 +1,73 @@
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const Module = require('node:module');
+require('sucrase/register');
+const resolve = Module._resolveFilename;
+Module._resolveFilename = function (request, parent, ...rest) {
+  return resolve.call(this, request.startsWith('@/') ? path.join(__dirname, '..', request.slice(2)) : request, parent, ...rest);
+};
+
+const { shutterFramesAt, stackReveal, addupScroll, ADDUP_PITCH, streamsLift, wrapWordRows, stackRowRange, takesAt } = require('../templates/motion-chips/shutter-type/params');
+const { useSceneStore } = require('../store/useSceneStore');
+const { shutterType } = require('../templates/motion-chips/shutter-type');
+for (const key of ['wordGap', 'letterSpacing', 'lineSpacing', 'stackGap', 'wordStagger', 'openingExitLead', 'stackEntryLead', 'stackEntryDuration']) {
+  assert.ok(shutterType.controls.some(control => control.key === key), `${key} control missing`);
+}
+assert.ok(!shutterType.controls.some(control => control.key === 'fontWeight'));
+const actions = useSceneStore.getState();
+actions.setActiveTemplate('chip-shutter-type');
+assert.equal(useSceneStore.getState().duration, 2.72);
+assert.deepEqual(wrapWordRows([200, 100, 200], 10, 456), [[0, 1], [2]]);
+assert.deepEqual(wrapWordRows([200, 100, 200], 10, 550), [[0, 1, 2]]);
+actions.setDuration(12);
+let state = useSceneStore.getState();
+const opening = state.values.openingDuration;
+const stack = state.values.stackDuration;
+assert.equal(opening, 0.8);
+assert.ok(Math.abs(opening + stack - 12) < 1e-9);
+assert.equal(shutterFramesAt(opening, state.duration, opening, stack).stack, 29);
+assert.equal(shutterFramesAt(opening, state.duration, opening, stack).afterCut, true);
+assert.equal(shutterFramesAt(opening - 0.01, state.duration, opening, stack).afterCut, false);
+assert.equal(shutterFramesAt(11.999, state.duration, opening, stack).stack, 67);
+actions.setValue('openingDuration', 4);
+state = useSceneStore.getState();
+assert.ok(Math.abs(state.duration - (4 + stack)) < 1e-9);
+assert.equal(shutterFramesAt(4, state.duration, 4, stack).stack, 29);
+for (const openingLength of [0.8, 4]) {
+  const first = shutterFramesAt(openingLength, openingLength + stack, openingLength, stack);
+  const before = shutterFramesAt(openingLength - 0.2, openingLength + stack, openingLength, stack);
+  const after = shutterFramesAt(openingLength + 0.2, openingLength + stack, openingLength, stack);
+  assert.equal(first.opening, 20);
+  assert.equal(first.stack, 29);
+  assert.equal(first.afterCut, true);
+  assert.ok(Math.abs(before.stack - 24) < 1e-9);
+  assert.ok(Math.abs(after.stack - 34) < 1e-9);
+  assert.ok(Math.abs(before.exit - 24) < 1e-9);
+}
+assert.equal(shutterFramesAt(0.2, 2.72, 0.8, 1.92).opening, shutterFramesAt(0.2, 5.92, 4, 1.92).opening);
+assert.equal(stackReveal(24, 5, 9), 0);
+assert.equal(stackReveal(29, 5, 9), 1);
+assert.ok(stackReveal(27, 5, 9) > 0 && stackReveal(27, 5, 9) < 1);
+assert.notEqual(stackReveal(27, 5, 9, [0.25, 0.25, 0.75, 0.75]), stackReveal(27, 5, 9));
+assert.equal(addupScroll(25), 0);
+assert.ok(addupScroll(29) > 0);
+assert.equal(addupScroll(67) % ADDUP_PITCH, 0);
+const [firstRow, lastRow] = stackRowRange(129, -400, 738);
+assert.ok(129 + firstRow * ADDUP_PITCH < -400);
+assert.ok(129 + lastRow * ADDUP_PITCH > 738);
+const [tightFirst, tightLast] = stackRowRange(129, -400, 738, 80);
+assert.ok(129 + tightFirst * 80 < -400);
+assert.ok(129 + tightLast * 80 > 738);
+assert.equal(addupScroll(67, 80) % 80, 0);
+assert.deepEqual(takesAt(23), { opening: true, stack: false });
+assert.deepEqual(takesAt(28), { opening: true, stack: true });
+assert.deepEqual(takesAt(30), { opening: false, stack: true });
+assert.deepEqual(takesAt(33), { opening: false, stack: true });
+assert.deepEqual(takesAt(28, 29), { opening: true, stack: false });
+assert.equal(streamsLift(22), 0);
+assert.ok(streamsLift(23) > 0);
+assert.ok(streamsLift(28) > 50);
+const legacyTrack = { ...state.tracks[0], values: { ...state.tracks[0].values, openingDuration: 12 * 1.16 / 2.72, stackDuration: 12 * 1.56 / 2.72 } };
+actions.hydrate({ tracks: [legacyTrack], activeTrackId: legacyTrack.id, duration: 12 });
+assert.equal(useSceneStore.getState().values.openingDuration, 0.8);
+console.log('Shutter timing: scene stretch, take split, cut, and single pass passed.');

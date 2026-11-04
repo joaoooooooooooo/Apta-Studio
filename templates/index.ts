@@ -1,4 +1,6 @@
 import { announceTitle } from './motion-chips/announce-title';
+import { shutterType } from './motion-chips/shutter-type';
+import { floodType } from './motion-chips/flood-type';
 import { socialTest, socialTestimonial, socialWithWithout, socialCoverflowRing, socialKpi, socialChannelThread, socialWordGather } from './social';
 import type { Template } from '@/lib/types';
 import { DEFAULT_EASING, type EasingSpec } from '@/lib/easing';
@@ -82,6 +84,8 @@ export const templateList: Template[] = [
   socialChannelThread,
   socialWordGather,
   announceTitle,
+  shutterType,
+  floodType,
   ...perspective3dTemplates,
   ...interactiveCardsVariants,
   ...spinnerVariants,
