@@ -161,7 +161,6 @@ export default function AssetsPanel({ onEditAsset, onAdjustAsset }: { onEditAsse
   const videoEnd = useSceneStore((s) => s.videoEnd);
   const setVideoEnd = useSceneStore((s) => s.setVideoEnd);
   const hasVideo = useSceneStore((s) => s.assets.some((a) => a.origin !== 'demo' && isVideoSource(a.url, a.kind)));
-  const fullBleed = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.cardAspect === 'canvas');
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -288,9 +287,6 @@ export default function AssetsPanel({ onEditAsset, onAdjustAsset }: { onEditAsse
         <div className="asset-meta">
           <span>Card shape</span>
         </div>
-        {fullBleed ? (
-          <div className="asset-meta"><span className="asset-name-empty">Full-bleed template — cards match the canvas</span></div>
-        ) : (
           <>
             <div className="pills shape-pills card-shape-pills">
               {SHAPE_OPTIONS.map((opt) => (
@@ -331,7 +327,6 @@ export default function AssetsPanel({ onEditAsset, onAdjustAsset }: { onEditAsse
               </>
             )}
           </>
-        )}
 
         {/* when a card video is shorter than the clip: restart or freeze at the end */}
         {hasVideo && (

@@ -132,11 +132,12 @@ for (const template of templateList) {
 
       check(everVisible, name, 'nothing is ever visible on the canvas', where);
 
-      // A full-bleed template owes coverage only when its own size control asks
-      // for the whole frame. Several reference presets deliberately sit at
+      // Auto full-bleed owes coverage when its size control asks for the
+      // whole frame. An explicit image ratio can expose the background.
+      // Several reference presets deliberately sit at
       // 63-73% of it, with background showing around the card.
       const wantsWholeFrame = (values.frameSize ?? values.planeSize ?? 100) >= 100;
-      if (template.meta.cardAspect === 'canvas' && wantsWholeFrame) {
+      if (template.meta.cardAspect === 'canvas' && shape === 'auto' && wantsWholeFrame) {
         check(everCovers, name, 'full-bleed template leaves a gap', where);
       }
     }

@@ -31,7 +31,6 @@ export default function MediaCropEditor({ asset, onClose }: { asset: AssetItem; 
   const frame = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const video = isVideoSource(asset.url, asset.kind);
-  const fullBleed = meta.cardAspect === 'canvas';
   const aspect = cardAspectFor(meta, width, height, shape);
   const ready = size.w > 0 && size.h > 0 && !error;
   const rect = coverCrop(size.w || 1, size.h || 1, aspect, crop);
@@ -88,7 +87,7 @@ export default function MediaCropEditor({ asset, onClose }: { asset: AssetItem; 
     if (!ready || !customValid) return;
     // Commit once, so cancel is lossless and history records one adjustment.
     useSceneStore.setState(s => ({
-      cardShape: fullBleed ? s.cardShape : shape,
+      cardShape: shape,
       assets: s.assets.map(a => all || a.id === asset.id ? { ...a, crop: { ...crop } } : a),
     }));
     onClose();
@@ -124,7 +123,7 @@ export default function MediaCropEditor({ asset, onClose }: { asset: AssetItem; 
         <fieldset className="media-crop-controls" disabled={!ready}>
           <div className="media-crop-section">
             <label>Aspect ratio</label>
-            {fullBleed ? <p className="media-crop-note">Follows the canvas · {width} × {height}</p> : <>
+            <>
               <div className="media-crop-ratios">
                 {['auto', '3:4', '9:16', '1:1', '4:5', '4:3', '16:9'].map(value => <button key={value} aria-pressed={!custom && shape === value}
                   onClick={() => { setCustom(false); setShape(value); }}>{value === 'auto' ? 'Auto' : value}</button>)}
@@ -133,7 +132,7 @@ export default function MediaCropEditor({ asset, onClose }: { asset: AssetItem; 
               {custom && <div className="media-crop-dimensions"><label>W<input aria-label="Crop ratio width" type="number" min="1" value={customW} onChange={e => changeCustom(e.target.value, customH)} /></label><span>×</span><label>H<input aria-label="Crop ratio height" type="number" min="1" value={customH} onChange={e => changeCustom(customW, e.target.value)} /></label></div>}
               {!customValid && <p role="alert" className="media-crop-note">Use positive dimensions with a ratio between 1:10 and 10:1.</p>}
               <p className="media-crop-note">Card ratio applies to all media.</p>
-            </>}
+            </>
           </div>
           <div className="media-crop-section">
             <ControlRow

@@ -41,3 +41,20 @@ s.setActiveTemplate('coverflow-03');
 track = useSceneStore.getState().tracks.find(t => t.id === second);
 for (const [key, value] of Object.entries(timing)) assert.equal(track[key], value);
 console.log('Template switching: standalone full-loop timing restored; composition trims preserved.');
+
+// Image dimensions must survive every preset selection, including families
+// that previously reset the shared crop to their reference aspect.
+const { templateList } = require('../templates');
+const { cardAspectFor } = require('../lib/crop');
+for (const shape of ['800:1000', '1600:900', '1:1']) {
+  const [w, h] = shape.split(':').map(Number);
+  s.setCardShape(shape);
+  for (const template of templateList) {
+    s.setActiveTemplate(template.meta.id);
+    const scene = useSceneStore.getState();
+    assert.equal(scene.cardShape, shape, `${template.meta.id} reset image dimensions`);
+    assert.equal(cardAspectFor(template.meta, scene.width, scene.height, scene.cardShape), w / h,
+      `${template.meta.id} ignored image dimensions`);
+  }
+}
+console.log(`Image dimensions: preserved and resolved across ${templateList.length} templates.`);

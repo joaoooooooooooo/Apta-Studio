@@ -583,19 +583,8 @@ export const useSceneStore = create<SceneState>((set, get) => ({
           customH: authoredCanvas.height,
           ...previewDims(authoredCanvas.width, authoredCanvas.height),
         } : {}),
-        // These reconstructed families have an intrinsic source ratio, just as
-        // their reference presets do. Users can still change it afterwards.
-        // Spinner takes 'auto' rather than one ratio for the whole family: the
-        // reference authors the card shape PER PRESET — square for Spinner 01-05
-        // and every Hinge, 4:3 for Spinner 06, 4:5 for all three Fans — and
-        // 'auto' is what defers to each template's own declared cardAspect.
-        // Pinning the family to 4:3 made every square preset a wide slab.
-        // Orbit 3D takes 'auto' for the same reason Spinner does: the reference
-        // authors the card shape per preset (square for most, 4:5 for the
-        // Lightroom drums, 9:16 for Bloom 05), and 'auto' is what defers to each
-        // template's own declared cardAspect. Any fixed shape here overrides it
-        // and every preset comes out the same proportion.
-        cardShape: templates[id]?.meta.kind === 'social-motion' ? 'auto' : isSpinnerPreset || isOrbit3dPreset || isArcPreset || isWheelRefPreset ? 'auto' : isStickerPreset ? '1:1' : isPosterPreset ? '4:5' : s.cardShape,
+        // Preserve image dimensions across presets; Auto uses each template's ratio.
+        cardShape: s.cardShape,
         duration: s.tracks.length > 1 ? s.duration : templates[id]?.meta.defaultDuration != null ? templates[id].meta.defaultDuration : templates[id]?.meta.kind === 'social-motion' ? 8 : isSpinnerPreset ? spinnerDuration : isStickerPreset ? stickerDuration : isPosterPreset ? posterDuration
           : isPulseRefPreset ? pulseDuration : isFlipPreset ? 12 : isOrbit3dPreset ? orbitDuration
             : isArcPreset ? arcDuration : isWheelRefPreset ? wheelRefDuration

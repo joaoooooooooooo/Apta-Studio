@@ -54,23 +54,21 @@ export function parseCardShape(shape?: string): number | null {
   return ratio;
 }
 
-// The card shape a template lays out. Full-bleed templates ('canvas') always
-// crop to the canvas aspect — a part-screen card there would leave gaps. For
-// everything else the user's scene-level shape wins; 'auto' falls back to the
-// template's declared cardAspect, then the 4:5 portrait default.
+// Explicit image dimensions win for every template. Auto uses the authored
+// shape, including the canvas ratio for full-bleed templates.
 export function cardAspectFor(
   meta: Template['meta'],
   width: number,
   height: number,
   shape?: string,
 ): number {
-  if (meta.cardAspect === 'canvas') return width / Math.max(1, height);
   // Presets are looked up before parsing so their exact stored numbers win:
   // "16:9" as a key is 16/9 to full precision, and re-deriving it from the
   // label would be the same number by luck rather than by definition.
   if (shape && CARD_SHAPES[shape]) return CARD_SHAPES[shape];
   const custom = parseCardShape(shape);
   if (custom !== null) return custom;
+  if (meta.cardAspect === 'canvas') return width / Math.max(1, height);
   return typeof meta.cardAspect === 'number' ? meta.cardAspect : 4 / 5;
 }
 

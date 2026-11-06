@@ -10,7 +10,9 @@ assert.deepEqual(normalizeCrop({ x: NaN, y: Infinity, zoom: NaN }), { x: .5, y: 
 assert.deepEqual(normalizeCrop({ x: -2, y: 8, zoom: 90 }), { x: 0, y: 1, zoom: 5 });
 assert.equal(cropKey('a', 1), cropKey('a', 1, { x: .5, y: .5, zoom: 1 }));
 assert.notEqual(cropKey('a', 1), cropKey('a', 1, { x: .5, y: .5, zoom: 2 }));
-assert.equal(cardAspectFor({ cardAspect: 'canvas' }, 1920, 1080, '1:1'), 1920 / 1080);
+assert.equal(cardAspectFor({ cardAspect: 'canvas' }, 1920, 1080, 'auto'), 1920 / 1080);
+assert.equal(cardAspectFor({ cardAspect: 'canvas' }, 1920, 1080, '1:1'), 1);
+assert.equal(cardAspectFor({ cardAspect: 'canvas' }, 1920, 1080, '800:1000'), .8);
 let cases = 0;
 for (const [w, h] of [[1200, 800], [800, 1200], [1000, 1000], [1, 1]]) {
   for (const aspect of [.1, 9/16, .8, 1, 16/9, 10]) {
